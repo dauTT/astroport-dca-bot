@@ -1,0 +1,4 @@
+venv/*
+.ipynb_checkpoints
+tests/localterra/config/write-file-atomic*
+*__pycache__*

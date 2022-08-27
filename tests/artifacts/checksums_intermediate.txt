@@ -1,0 +1,1 @@
+45a860aacd1b11fdfbbe4c7b9ed7ae135787c4f70a6ee62fcd34c9d596551549  target/wasm32-unknown-unknown/release/astroport_dca_module.wasm
