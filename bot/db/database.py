@@ -2,12 +2,14 @@ from datetime import date
 
 from bot.db.table.user import User
 from bot.db.table.dca_order import DcaOrder
-from bot.db.table.whitelisted_tokens import WhitelistedToken
-from bot.util import NativeAsset, TokenAsset, AssetInfo, AssetClass, Order
+from bot.db.table.whitelisted_token import WhitelistedToken
+from bot.db.table.whitelisted_hop import WhitelistedHop
+from bot.util import NativeAsset, TokenAsset, AssetInfo, AssetClass, Order, AstroSwap
 from bot.db.base import session_factory, engine, Base
-from sqlalchemy import exc, inspect, text
+from sqlalchemy import exc, inspect, text, MetaData
 from sqlalchemy.orm import scoped_session
-
+from typing import Any
+import json
 import logging
 
 logger = logging.getLogger(__name__)
@@ -30,7 +32,6 @@ def db_persist(func):
             session.rollback()
         finally:
             session.close()
-
     return persist
 
 
@@ -38,8 +39,9 @@ class Database:
 
     def get_tables_names(self):
         ins = inspect(engine)
-        for _t in ins.get_table_names():
-            print("inspect: ", _t)
+        output = ins.get_table_names()
+        logger.info([t for t in output])
+        return output
 
     @db_persist
     def insert_or_update(self, table_object):
@@ -51,6 +53,12 @@ class Database:
              for k in table_object.__dict__ if k != "_sa_instance_state"]))
 
         return session.merge(table_object)
+
+    def drop_table(self, table: Any):
+        """ :param table: the class which model the table in the database 
+        """
+        logger.info(f'Deleting {table.__tablename__} table')
+        table.__table__.drop(engine)
 
     def query(self, table_object):
         session = Session()
@@ -65,7 +73,8 @@ class Database:
         cursor = engine.execute(sql)
         result = [dict(zip(list(cursor.keys()), list(r)))
                   for r in cursor.fetchall()]
-        logger.info("result: {}".format(result))
+
+        logger.info("result: {}".format(json.dumps(result, indent=4)))
         return result
 
     def get_users(self):
@@ -85,11 +94,65 @@ class Database:
             ",".join(columns), WhitelistedToken.__tablename__)
         return self.sql_query(sql)
 
-    # print("\n", record)
-    #
+    def get_whitelisted_hops(self):
+        columns = ['id', 'pair', 'offer_denom', 'ask_denom']
+        sql = "SELECT {} FROM {}".format(
+            ",".join(columns), WhitelistedHop.__tablename__)
+        return self.sql_query(sql)
+
+    def get_whitelisted_hops_complete(self):
+        """ This view provide the complete list of hops (swap operations) that the bot can chose from.
+        """
+        sql = """
+        WITH RECURSIVE
+            cte(start_denom, id , hops_len, target_denom, trace) AS (
+            SELECT 
+                offer_denom AS start_denom, 
+                CAST(id AS TEXT) AS id, 
+                1 AS hops_len, 
+                ask_denom as target_denom,
+                '<' || CAST(id AS TEXT) || '>' AS trace
+            FROM whitelisted_hop
+            UNION ALL
+            SELECT 
+                ask_denom AS start_denom, 
+                'inverse-' || CAST(id AS TEXT) AS id, 
+                1 AS hops_len, 
+                offer_denom as target_denom,
+                '<inverse-' || CAST(id AS TEXT) || '>' AS trace
+            FROM whitelisted_hop
+            UNION ALL
+            SELECT 
+                start_denom, 
+                CAST(wh.id AS TEXT) AS id, 
+                hops_len + 1 AS hops_len,
+                wh.ask_denom,
+                cte.trace ||  CASE WHEN cte.target_denom=wh.offer_denom 
+                                   THEN '<' 
+                                   ELSE '<inverse-' 
+                               END || CAST(wh.id AS TEXT) || '>' AS trace
+            FROM cte 
+                JOIN whitelisted_hop AS wh ON (cte.target_denom=wh.offer_denom 
+                or cte.target_denom = wh.ask_denom
+                ) and (cte.trace NOT LIKE '%<' || CAST(wh.id AS TEXT) || '>%'
+                                            and cte.trace NOT LIKE '%<inverse-' || CAST(wh.id AS TEXT) || '>%')
+           
+        
+        )
+        SELECT 
+            start_denom, 
+            id , 
+            hops_len, 
+            target_denom, 
+            trace  
+        FROM cte
+        """
+        return self.sql_query(sql)
+
+
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
-    logging.getLogger('sqlalchemy.engine.Engine').setLevel(logging.INFO)
+    # logging.getLogger('sqlalchemy.engine.Engine').setLevel(logging.DEBUG)
 
     db = Database()
     u1 = User("123")
@@ -160,7 +223,7 @@ if __name__ == "__main__":
 
     ai1 = AssetInfo(AssetClass.NATIVE_TOKEN, "denom1")
     ai2 = AssetInfo(AssetClass.NATIVE_TOKEN, "denom2")
-    ai3 = AssetInfo(AssetClass.TOKEN, "tokne_contract1")
+    ai3 = AssetInfo(AssetClass.TOKEN, "denom3")
 
     w1 = WhitelistedToken(ai1)
     w2 = WhitelistedToken(ai2)
@@ -171,3 +234,19 @@ if __name__ == "__main__":
     db.insert_or_update(w3)
 
     db.get_whitelisted_tokens()
+
+    # astro_swap1 = AstroSwap(ai1, ai2)
+    # astro_swap2 = AstroSwap(ai2, ai3)
+    # ws1 = WhitelistedHop(astro_swap1)
+    # ws2 = WhitelistedHop(astro_swap2)
+    # db.insert_or_update(ws1)
+    # db.insert_or_update(ws2)
+
+    db.get_whitelisted_hops()
+
+    # db.get_tables_names()
+
+    db.get_whitelisted_hops_complete()
+
+    # WhitelistedHop.__table__.drop(engine)
+    # db.drop_table(WhitelistedHop)
