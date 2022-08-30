@@ -1,8 +1,9 @@
 from tokenize import Token
-from util import DCA, AstroSwap, NativeAsset, Order, TokenAsset,\
-    read_artifact, parse_dict_to_order, Asset
+from util import DCA, AssetClass, AssetInfo, AstroSwap, NativeAsset, Order, TokenAsset,\
+    read_artifact, parse_dict_to_order, Asset, parse_hops_from_string
 from terra_sdk.client.localterra import LocalTerra
 from typing import TypedDict, List
+from bot.db.database import Database
 
 
 def build_fee_redeem(hops_len: int,  user_tip_balance: List[Asset], whitelisted_fee_assets: List[Asset]) -> List[Asset]:
@@ -41,10 +42,21 @@ def build_fee_redeem(hops_len: int,  user_tip_balance: List[Asset], whitelisted_
     return fee_redeem
 
 
-def build_hops(order) -> List[AstroSwap]:
-    hops: List[AstroSwap] = []
+def build_hops(start_denom: str, target_denom: str, hops_len: int) -> List[AstroSwap]:
+    db = Database()
 
-    return hops
+    list_hops = db.get_whitelisted_hops_complete(
+        start_denom, target_denom, hops_len)
+
+    err_msg = """There is no hops with inputs: 
+                 start_denom={}, 
+                 target_denom={},
+                 hops_len={}""".format(start_denom, target_denom, hops_len)
+    assert len(list_hops) > 0, err_msg
+
+    # pick the first whitelisted hops
+    hops_string = list_hops[0]["hops"]
+    return parse_hops_from_string(hops_string, db.get_whitelisted_tokens(), db.get_whitelisted_hops())
 
 
 def execute_purchase(user_address: str, id: int):
@@ -59,38 +71,40 @@ def execute_purchase(user_address: str, id: int):
     cfg_user = dca.query_get_user_config(user_address)
 
     max_hops = cfg_dca['max_hops'] if cfg_user['max_hops'] is None else cfg_user['max_hops']
-    max_spread = cfg_dca['max_spread'] if cfg_user['max_spread'] is None else cfg_user['max_spread']
+    # max_spread = cfg_dca['max_spread'] if cfg_user['max_spread'] is None else cfg_user['max_spread']
     tip_balance = cfg_user['tip_balance']
 
-    print("tip_balance: ", tip_balance)
     whitelisted_fee_assets = cfg_dca['whitelisted_fee_assets']
-    print("whitelisted_fee_assets: ", whitelisted_fee_assets)
-
-    whitelisted_tokens = cfg_dca['whitelisted_tokens']
 
     user_orders = dca.query_get_user_dca_orders(user_address)
     order = None
     for o in user_orders:
         if o["order"]["id"] == id:
             order = parse_dict_to_order(o["order"])
+    assert order is not None, "No oder found with following input: user={}, order_id={}".format(
+        user_address, id)
 
-    # check inteval?
-    # hops = build_hops(order)
-    # fee_redeem = build_fee_redeem(
-    #     len(hops),  tip_balance, whitelisted_fee_assets)
+    order["initial_asset"].get_denom()
+    order["target_asset"].denom
 
-    # print(order)
+    hops = build_hops(order["initial_asset"].get_denom(),
+                      order["target_asset"].denom,
+                      max_hops)
 
-    # id = 1000
-    # hops = [AstroSwap("a", "b"), AstroSwap("b", "d")]
-    # fee_redeem = [TokenAsset("contract1", "100"),
-    #               NativeAsset("denom1", "1000")]
+    fee_redeem = build_fee_redeem(
+        len(hops),  tip_balance, whitelisted_fee_assets)
 
-    # dca.execute_perform_dca_purchase(user_address, id, hops, fee_redeem)
+    dca.execute_perform_dca_purchase(user_address, id, hops, fee_redeem)
 
 
 if __name__ == "__main__":
     user_address = "terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v"
     id = 1  # --> native target asset
     # id = 3  # --> token target asset
-    execute_purchase(user_address, id)
+    #execute_purchase(user_address, id)
+
+    hops = build_hops("denom1", "denom2", 2)
+    print(hops)
+
+    hops = build_hops("denom1", "denom3", 2)
+    print(hops)

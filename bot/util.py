@@ -17,33 +17,7 @@ from typing import Dict, List, Any, Optional, TypedDict
 # import traceback
 from abc import ABC, abstractmethod
 from enum import Enum
-import logging
-from logging.handlers import RotatingFileHandler
-
-
-BASE_DIR = "../logs"
-
-
-def init_log():
-
-    file_name = os.path.join(BASE_DIR, 'log', 'bot.log')
-    format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    logging.basicConfig(filename=file_name, format=format, level=logging.INFO)
-    logger = logging.getLogger()
-    logger.setLevel(logging.INFO)
-    formatter = logging.Formatter(format)
-    file_handler = RotatingFileHandler(file_name,
-                                       maxBytes=1024 * 1024 * 50,
-                                       backupCount=10)
-    file_handler.setLevel(logging.INFO)
-    file_handler.setFormatter(formatter)
-    logger.addHandler(file_handler)
-
-    stream_handler = logging.StreamHandler()
-    stream_handler.setLevel(logging.INFO)
-    stream_handler.setFormatter(formatter)
-    logger.addHandler(stream_handler)
-    return logger
+#from bot.db.database import Database
 
 
 ARTIFACTS_PATH = "tests/localterra"
@@ -133,6 +107,9 @@ class AstroSwap:
                 'ask_asset_info': self.ask_asset_info.to_dict()
             }
         }
+
+    def __repr__(self):
+        return "{}".format(self.to_dict())
 
 
 class Asset(ABC):
@@ -253,6 +230,47 @@ def parse_dict_to_order(d: dict) -> Order:
                  interval=d["interval"],
                  last_purchase=d["last_purchase"],
                  dca_amount=d["dca_amount"])
+
+
+def parse_hops_from_string(hops: str,  whithelisted_tokens: List[dict], whithelisted_hops: List[dict]) -> List[AstroSwap]:
+    output: List[AstroSwap] = []
+
+    map_wt = {}
+    for wt in whithelisted_tokens:
+        ac = AssetClass.NATIVE_TOKEN if wt["asset_class"] == AssetClass.NATIVE_TOKEN.value else AssetClass.TOKEN
+        map_wt[wt["denom"]] = AssetInfo(ac, wt["denom"])
+    map_hops = {}
+    for h in whithelisted_hops:
+        map_hops[h["id"]] = h
+
+    l = hops.split("><")
+    length = len(l)
+    if length == 0:
+        assert length > 0
+
+    for hop in l:
+        hop = l[0].replace("<", "").replace(">", "")
+        hop_id = int(hop)
+        if hop.__contains__("inverse-"):
+            hop_id = int(hop.replace("inverse-", ""))
+
+        assert hop_id in map_hops, "Missing hop_id={} in the whitelisted_hop={}".format(
+            hop_id, whithelisted_hops)
+
+        offer_denom = map_hops[hop_id]['offer_denom']
+        ask_denom = map_hops[hop_id]['ask_denom']
+        assert offer_denom in map_wt, "Missing offer_denom={} in the whithelisted_tokens={}".format(offer_denom,
+                                                                                                    whithelisted_tokens)
+        assert ask_denom in map_wt, "Missing ask_denom={} in the whithelisted_tokens={}".format(ask_denom,
+                                                                                                whithelisted_tokens)
+        offer_asset_info = map_wt[offer_denom]
+        ask_asset_info = map_wt[ask_denom]
+
+        if hop.__contains__("inverse-"):
+            output.append(AstroSwap(ask_asset_info, offer_asset_info))
+        else:
+            output.append(AstroSwap(offer_asset_info, ask_asset_info))
+    return output
 
 
 class DCA:
