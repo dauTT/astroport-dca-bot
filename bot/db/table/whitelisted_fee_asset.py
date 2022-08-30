@@ -7,8 +7,8 @@ class WhitelistedFeeAsset(Base):
     __tablename__ = 'whitelisted_fee_asset'
 
     denom = Column(String, primary_key=True)
-    asset_class = Column(String)
-    amount = Column(String)
+    asset_class = Column(String, nullable=False)
+    amount = Column(String, nullable=False)
 
     def __init__(self, asset: Asset):
         self.denom = asset.get_denom()

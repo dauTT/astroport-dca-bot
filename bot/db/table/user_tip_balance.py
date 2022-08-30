@@ -10,8 +10,8 @@ class UserTipBalance(Base):
     user_id = Column(String, ForeignKey(
         "user.id", ondelete="CASCADE"))
     denom = Column(String, primary_key=True)
-    asset_class = Column(String)
-    amount = Column(String)
+    asset_class = Column(String, nullable=False)
+    amount = Column(String, nullable=False)
 
     def __init__(self, user_address: str, asset: Asset):
         self.id = "{}-{}".format(user_address, asset.get_denom())

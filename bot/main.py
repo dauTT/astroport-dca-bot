@@ -1,9 +1,9 @@
-from tokenize import Token
-from util import DCA, AssetClass, AssetInfo, AstroSwap, NativeAsset, Order, TokenAsset,\
+from util import AstroSwap, NativeAsset,\
     read_artifact, parse_dict_to_order, Asset, parse_hops_from_string
 from terra_sdk.client.localterra import LocalTerra
-from typing import TypedDict, List
+from typing import List
 from bot.db.database import Database
+from bot.dca import DCA
 
 
 def build_fee_redeem(hops_len: int,  user_tip_balance: List[Asset], whitelisted_fee_assets: List[Asset]) -> List[Asset]:
@@ -73,7 +73,6 @@ def execute_purchase(user_address: str, id: int):
     max_hops = cfg_dca['max_hops'] if cfg_user['max_hops'] is None else cfg_user['max_hops']
     # max_spread = cfg_dca['max_spread'] if cfg_user['max_spread'] is None else cfg_user['max_spread']
     tip_balance = cfg_user['tip_balance']
-
     whitelisted_fee_assets = cfg_dca['whitelisted_fee_assets']
 
     user_orders = dca.query_get_user_dca_orders(user_address)
