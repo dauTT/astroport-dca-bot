@@ -32,7 +32,7 @@ class DCA:
             "pairs": {}
         })
 
-    def query_get_user_dca_orders(self, user_address: str) -> dict:
+    def query_get_user_dca_orders(self, user_address: str) -> List[dict]:
         assert self.dca_address != "", "No dca contract address given"
 
         return self.terra.wasm.contract_query(self.dca_address, {
@@ -52,7 +52,6 @@ class DCA:
 
     def query_get_config(self) -> dict:
         assert self.dca_address != "", "No dca contract address given"
-
         return self.terra.wasm.contract_query(self.dca_address, {"config": {}})
 
     def instantiate(self, dca_code_id: int, msg: Any) -> str:

@@ -154,7 +154,7 @@ class TokenAsset(Asset):
     def to_coin(self) -> Coin:
         return Coin("", 0)
 
-    def get_denom(self):
+    def get_denom(self) -> str:
         return self.addr
 
     def is_native(self) -> bool:
@@ -176,7 +176,7 @@ class NativeAsset(Asset):
             "amount": self.amount,
         }
 
-    def get_denom(self):
+    def get_denom(self) -> str:
         return self.denom
 
     def to_coin(self) -> Coin:
@@ -193,9 +193,9 @@ def parse_dict_to_asset(d: dict) -> Asset:
     assert AssetClass.TOKEN.value in d["info"] or AssetClass.NATIVE_TOKEN.value in d["info"], err_msg
 
     if AssetClass.TOKEN.value in d["info"]:
-        return TokenAsset(d["info"]["token"], d["amount"])
+        return TokenAsset(d["info"]["token"]["contract_addr"], d["amount"])
     else:
-        return NativeAsset(d["info"]["native_token"], d["amount"])
+        return NativeAsset(d["info"]["native_token"]["denom"], d["amount"])
 
 
 def parse_dict_to_asset_info(d: dict) -> AssetInfo:
@@ -212,15 +212,19 @@ def parse_dict_to_asset_info(d: dict) -> AssetInfo:
 
 
 def parse_dict_to_order(d: dict) -> Order:
+    order = d["order"]
     for key in ['id', 'initial_asset', 'target_asset', 'interval', 'last_purchase', 'dca_amount']:
-        assert key in d, "Expected key={} in the dictionary".format(key)
-    return Order(id=d['id'],
+        assert key in order, "Expected key={} in the order dict={}".format(
+            key, order)
+    return Order(id=order['id'],
                  token_allowance=d.get("token_allowance", ""),
-                 initial_asset=parse_dict_to_asset(d["initial_asset"]),
-                 target_asset=parse_dict_to_asset_info(d["target_asset"]),
-                 interval=d["interval"],
-                 last_purchase=d["last_purchase"],
-                 dca_amount=d["dca_amount"])
+                 initial_asset=parse_dict_to_asset(
+                     order["initial_asset"]),
+                 target_asset=parse_dict_to_asset_info(
+                     order["target_asset"]),
+                 interval=order["interval"],
+                 last_purchase=order["last_purchase"],
+                 dca_amount=order["dca_amount"])
 
 
 def parse_hops_from_string(hops: str,  whithelisted_tokens: List[dict],

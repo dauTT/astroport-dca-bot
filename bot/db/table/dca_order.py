@@ -21,7 +21,7 @@ class DcaOrder(Base):
     last_purchase = Column(Integer)
     dca_amount = Column(String, nullable=False)
     max_spread = Column(String, nullable=False)
-    max_hop = Column(Integer, nullable=False)
+    max_hops = Column(Integer, nullable=False)
 
     def __init__(self, user_address: str, max_spread: str, max_hop: int,  order: Order):
         self.id = "{}-{}".format(user_address, order["id"])
@@ -39,16 +39,16 @@ class DcaOrder(Base):
         self.last_purchase = order["last_purchase"]
         self.dca_amount = order["dca_amount"]
         self.max_spread = max_spread
-        self.max_hop = max_hop
+        self.max_hops = max_hop
 
     def __repr__(self) -> str:
         return """id={}, user_address={}, dca_order_id={},
                   token_allowance={}, initial_asset_class={},
                   initial_asset_denom={}, target_asset_class={},
                   target_asset_denom={}, interval={}, last_purchase={},
-                  dca_amount={}, max_spread={}, max_hop={}
+                  dca_amount={}, max_spread={}, max_hops={}
         """.format(self.id, self.user_address, self.dca_order_id,
                    self.token_allowance, self.initial_asset_class,
                    self.initial_asset_denom, self.target_asset_class,
                    self.target_asset_denom, self.interval, self.last_purchase,
-                   self.dca_amount, self.max_spread, self.max_hop)
+                   self.dca_amount, self.max_spread, self.max_hops)

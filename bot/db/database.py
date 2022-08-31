@@ -64,13 +64,13 @@ class Database:
         logger.info(f'Deleting {table.__tablename__} table')
         table.__table__.drop(engine)
 
-    def query(self, table_object):
-        session = Session()
-        query = session.query(table_object)
-        result = query.all()
-        print("XXXXXXXXXXXX result: ")
-        for r in result:
-            print(r)
+    # def query(self, table_object):
+    #     session = Session()
+    #     query = session.query(table_object)
+    #     result = query.all()
+    #     print("XXXXXXXXXXXX result: ")
+    #     for r in result:
+    #         print(r)
 
     def sql_query(self, query: str) -> List[dict]:
         sql = text(query)
@@ -89,7 +89,7 @@ class Database:
         columns = ['id', 'user_address', 'dca_order_id', 'token_allowance',
                    'initial_asset_class', 'initial_asset_denom', 'initial_asset_amount',
                    'target_asset_class', 'target_asset_denom', 'interval',
-                   'last_purchase', 'dca_amount', 'max_spread', 'max_hop']
+                   'last_purchase', 'dca_amount', 'max_spread', 'max_hops']
         sql = "SELECT {} FROM {}".format(
             ",".join(columns), DcaOrder.__tablename__)
         return self.sql_query(sql)

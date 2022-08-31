@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, Date, ForeignKey
+from sqlalchemy import Column, String, ForeignKey
 from bot.db.base import Base
 from bot.util import Asset, AssetClass
 
@@ -22,4 +22,4 @@ class UserTipBalance(Base):
         self.amount = asset.get_asset()["amount"]
 
     def __repr__(self) -> str:
-        return "denom={}, asset_class={}, amount={}".format(self.id, self.asset_class, self.amount)
+        return "id={}, denom={}, asset_class={}, amount={}".format(self.id, self.denom, self.asset_class, self.amount)

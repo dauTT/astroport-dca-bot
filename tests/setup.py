@@ -4,11 +4,12 @@ from typing import Any, Optional
 from terra_sdk.client.localterra import LocalTerra
 from terra_sdk.core import Coins
 from terra_sdk.core.wasm import MsgStoreCode, MsgInstantiateContract, MsgExecuteContract
-from bot.util import DCA,\
-    TokenAsset, NativeAsset,\
-    Asset, read_artifact, write_artifact
 from terra_sdk.core.bech32 import AccAddress
 from terra_sdk.client.lcd import LCDClient, Wallet
+from bot.util import TokenAsset, NativeAsset,\
+    Asset, read_artifact, write_artifact
+from bot.dca import DCA
+from typing import List
 
 
 def upload_dca_contract(terra: LCDClient,
@@ -87,7 +88,22 @@ def create_test_orders():
         10, 1000000, get_block_time_second(terra)+10)
 
 
+def add_user_tip_balance():
+    network = read_artifact("localterra")
+    terra = LocalTerra()
+    test_wallet_1 = terra.wallets["test1"]
+
+    dca = DCA(terra, test_wallet_1, network["dcaAddress"])
+
+    asset1 = TokenAsset(
+        network["tokenAddresses"]["CCC"], "1000000")
+    asset2 = NativeAsset("uluna", "1000000")
+    dca.execute_add_bot_tip([asset1, asset2])
+    # dca.execute_add_bot_tip(asset1)
+
+
 if __name__ == "__main__":
     # deploy_dca_contract()
-    create_test_orders()
+    # create_test_orders()
+    add_user_tip_balance()
     pass
