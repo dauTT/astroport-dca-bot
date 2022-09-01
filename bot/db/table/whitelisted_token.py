@@ -1,6 +1,6 @@
 from sqlalchemy import Column, String, Integer, Date
 from bot.db.base import Base
-from bot.util import AssetInfo
+from bot.type import AssetInfo
 
 
 class WhitelistedToken(Base):
@@ -14,4 +14,10 @@ class WhitelistedToken(Base):
         self.asset_class = asset_info.asset_class.value
 
     def __repr__(self) -> str:
-        return "denom={}, asset_class={}".format(self.id, self.asset_class)
+        repr = ["{}={}".format(k, self.__dict__[k])
+                for k in self.__dict__.keys() if k != "_sa_instance_state"]
+        nice_string = """
+    """.join(repr)
+        return """[
+    {}
+]""".format(nice_string)

@@ -1,8 +1,6 @@
-from sqlalchemy import Column, String, Integer, Date, ForeignKey
-
+from sqlalchemy import Column, String, Integer, ForeignKey
 from bot.db.base import Base
-from bot.db.table.user import User
-from bot.util import Order
+from bot.type import Order
 
 
 class DcaOrder(Base):
@@ -23,32 +21,33 @@ class DcaOrder(Base):
     max_spread = Column(String, nullable=False)
     max_hops = Column(Integer, nullable=False)
 
-    def __init__(self, user_address: str, max_spread: str, max_hop: int,  order: Order):
-        self.id = "{}-{}".format(user_address, order["id"])
+    def __init__(self, user_address: str, max_spread: str, max_hops: int,  order: Order):
+        self.id = DcaOrder.build_id(user_address, order.id)
         self.user_address = user_address
-        self.dca_order_id = order["id"]
-        self.token_allowance = order["token_allowance"]
-        self.initial_asset_class = order["initial_asset"].get_info(
+        self.dca_order_id = order.id
+        self.token_allowance = order.token_allowance
+        self.initial_asset_class = order.initial_asset.get_info(
         ).asset_class.value
-        self.initial_asset_denom = order["initial_asset"].get_denom()
-        self.initial_asset_amount = order["initial_asset"].get_asset()[
-            "amount"]
-        self.target_asset_class = order["target_asset"].asset_class.value
-        self.target_asset_denom = order["target_asset"].denom
-        self.interval = order["last_purchase"]
-        self.last_purchase = order["last_purchase"]
-        self.dca_amount = order["dca_amount"]
+        self.initial_asset_denom = order.initial_asset.get_denom()
+        self.initial_asset_amount = int(order.initial_asset.get_asset()[
+            "amount"])
+        self.target_asset_class = order.target_asset.asset_class.value
+        self.target_asset_denom = order.target_asset.denom
+        self.interval = order.interval
+        self.last_purchase = order.last_purchase
+        self.dca_amount = order.dca_amount
         self.max_spread = max_spread
-        self.max_hops = max_hop
+        self.max_hops = max_hops
+
+    @staticmethod
+    def build_id(user_address: str, order_id: int):
+        return "{}-{}".format(user_address, order_id)
 
     def __repr__(self) -> str:
-        return """id={}, user_address={}, dca_order_id={},
-                  token_allowance={}, initial_asset_class={},
-                  initial_asset_denom={}, target_asset_class={},
-                  target_asset_denom={}, interval={}, last_purchase={},
-                  dca_amount={}, max_spread={}, max_hops={}
-        """.format(self.id, self.user_address, self.dca_order_id,
-                   self.token_allowance, self.initial_asset_class,
-                   self.initial_asset_denom, self.target_asset_class,
-                   self.target_asset_denom, self.interval, self.last_purchase,
-                   self.dca_amount, self.max_spread, self.max_hops)
+        repr = ["{}={}".format(k, self.__dict__[k])
+                for k in self.__dict__.keys() if k != "_sa_instance_state"]
+        nice_string = """
+    """.join(repr)
+        return """[
+    {}
+]""".format(nice_string)

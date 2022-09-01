@@ -2,7 +2,7 @@
 from sqlalchemy.schema import DDL
 from sqlalchemy import Column, String, Integer, ForeignKey
 from bot.db.base import Base
-from bot.util import AstroSwap
+from bot.type import AstroSwap
 from sqlalchemy import event, DDL
 
 
@@ -20,20 +20,30 @@ class WhitelistedHop(Base):
     ask_denom = Column(String, ForeignKey(
         "whitelisted_token.denom", ondelete="CASCADE"))
 
-    #__table_args__ = (UniqueConstraint('id'), )
+    # __table_args__ = (UniqueConstraint('id'), )
 
     def __init__(self, astro_swap: AstroSwap):
-        l = [astro_swap.offer_asset_info.denom,
-             astro_swap.ask_asset_info.denom]
-        l.sort()
-        # By sorting l we ensure that the pair_id field is unique. This means that
-        # AstroSwap(A,B) or AstroSwap(B,A) define the same hop.
-        self.pair_id = "-".join(l)
+        self.pair_id = WhitelistedHop.build_pair_id(astro_swap)
         self.offer_denom = astro_swap.offer_asset_info.denom
         self.ask_denom = astro_swap.ask_asset_info.denom
 
+    @staticmethod
+    def build_pair_id(astro_swap: AstroSwap):
+        l = [astro_swap.offer_asset_info.denom,
+             astro_swap.ask_asset_info.denom]
+        # By sorting l we ensure that the pair_id field is unique. This means that
+        # AstroSwap(A,B) or AstroSwap(B,A) define the same hop.
+        l.sort()
+        return "-".join(l)
+
     def __repr__(self) -> str:
-        return "id={}, pair_id={}, offer_denom={}, ask_denom={}".format(self.id, self.pair,  self.offer_denom, self.ask_denom)
+        repr = ["{}={}".format(k, self.__dict__[k])
+                for k in self.__dict__.keys() if k != "_sa_instance_state"]
+        nice_string = """
+    """.join(repr)
+        return """[
+    {}
+]""".format(nice_string)
 
 
 # We use a trigget to autoincrement column id becaucse the autoincrement feature does not

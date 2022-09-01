@@ -11,4 +11,10 @@ class User(Base):
         self.id = user_address
 
     def __repr__(self) -> str:
-        return "id={}".format(self.id)
+        repr = ["{}={}".format(k, self.__dict__[k])
+                for k in self.__dict__.keys() if k != "_sa_instance_state"]
+        nice_string = """
+    """.join(repr)
+        return """[
+    {}
+]""".format(nice_string)

@@ -1,25 +1,35 @@
-from sqlalchemy import Column, String, ForeignKey
+from sqlalchemy import Column, String, ForeignKey, Integer
 from bot.db.base import Base
-from bot.util import Asset, AssetClass
+from bot.type import Asset, AssetClass
 
 
 class UserTipBalance(Base):
     __tablename__ = 'user_tip_balance'
 
     id = Column(String, primary_key=True)
-    user_id = Column(String, ForeignKey(
+    user_address = Column(String, ForeignKey(
         "user.id", ondelete="CASCADE"))
     denom = Column(String, primary_key=True)
     asset_class = Column(String, nullable=False)
     amount = Column(String, nullable=False)
 
     def __init__(self, user_address: str, asset: Asset):
-        self.id = "{}-{}".format(user_address, asset.get_denom())
-        self.user_id = user_address
+        self.id = UserTipBalance.build_id(user_address, asset.get_denom())
+        self.user_address = user_address
         self.denom = asset.get_denom()
         self.asset_class = AssetClass.NATIVE_TOKEN.value if asset.is_native(
         ) else AssetClass.TOKEN.value
         self.amount = asset.get_asset()["amount"]
 
+    @staticmethod
+    def build_id(user_address: str, denom: str):
+        return "{}-{}".format(user_address, denom)
+
     def __repr__(self) -> str:
-        return "id={}, denom={}, asset_class={}, amount={}".format(self.id, self.denom, self.asset_class, self.amount)
+        repr = ["{}={}".format(k, self.__dict__[k])
+                for k in self.__dict__.keys() if k != "_sa_instance_state"]
+        nice_string = """
+    """.join(repr)
+        return """[
+    {}
+]""".format(nice_string)
