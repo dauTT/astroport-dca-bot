@@ -6,9 +6,15 @@ from terra_sdk.core.msg import Msg
 from terra_sdk.core.tx import Tx
 from terra_sdk.core.broadcast import BlockTxBroadcastResult
 from terra_sdk.client.lcd import LCDClient, Wallet
-from typing import Dict, List, Any, TypedDict
-from abc import ABC, abstractmethod
-from enum import Enum
+from typing import List, Any
+import logging
+from bot.db.table.whitelisted_hop import WhitelistedHop
+from bot.db.table.whitelisted_token import WhitelistedToken
+from bot.type import AssetClass, Asset, AssetInfo, Order, \
+    NativeAsset, TokenAsset, AstroSwap
+from bot.db.database import Database
+
+logger = logging.getLogger(__name__)
 
 
 ARTIFACTS_PATH = "tests/localterra"
@@ -35,7 +41,7 @@ def perform_transactions(
 ) -> BlockTxBroadcastResult:
     signed_txs = create_transactions(wallet, msgs)
     output = broadcast_transaction(terra, signed_txs)
-    print("perform_transactions output:", output)
+    logger.info("""perform_transactions output: """, output)
     return output
 
 
@@ -62,128 +68,6 @@ def perform_transaction(
     output = broadcast_transaction(terra, signed_tx)
     print("perform_transaction output:", output)
     return output
-
-
-class AssetClass(Enum):
-    NATIVE_TOKEN = "native_token"
-    TOKEN = "token"
-
-
-class AssetInfo():
-
-    def __init__(self, asset_class: AssetClass, denom: str):
-        self.asset_class = asset_class
-        self.denom = denom
-
-    def to_dict(self) -> Any:
-        key = "denom" if self.asset_class == AssetClass.NATIVE_TOKEN else "contract_addr"
-        return {
-            self.asset_class.value: {
-                key: self.denom
-            }
-        }
-
-
-class AstroSwap:
-
-    def __init__(self, offer_asset_info: AssetInfo,
-                 ask_asset_info: AssetInfo):
-        self.offer_asset_info = offer_asset_info
-        self.ask_asset_info = ask_asset_info
-
-    def to_dict(self):
-        return {
-            "astro_swap": {
-                'offer_asset_info':  self.offer_asset_info.to_dict(),
-                'ask_asset_info': self.ask_asset_info.to_dict()
-            }
-        }
-
-    def __repr__(self):
-        return "{}".format(self.to_dict())
-
-
-class Asset(ABC):
-
-    @abstractmethod
-    def get_info(self) -> AssetInfo:
-        pass
-
-    @abstractmethod
-    def get_asset(self) -> Dict[str, Any]:
-        pass
-
-    @abstractmethod
-    def get_denom(self) -> str:
-        pass
-
-    @abstractmethod
-    def to_coin(self) -> Coin:
-        pass
-
-    @abstractmethod
-    def is_native(self) -> bool:
-        pass
-
-
-class Order(TypedDict):
-    id: int
-    token_allowance: str
-    initial_asset: Asset
-    target_asset: AssetInfo
-    interval: int
-    last_purchase: int
-    dca_amount: str
-
-
-class TokenAsset(Asset):
-
-    def __init__(self, addr: str, amount: str = "0"):
-        self.addr = addr
-        self.amount = amount
-
-    def get_info(self) -> AssetInfo:
-        return AssetInfo(AssetClass.TOKEN, self.addr)
-
-    def get_asset(self) -> Dict[str, Any]:
-        return {
-            "info": self.get_info().to_dict(),
-            "amount": self.amount,
-        }
-
-    def to_coin(self) -> Coin:
-        return Coin("", 0)
-
-    def get_denom(self) -> str:
-        return self.addr
-
-    def is_native(self) -> bool:
-        return False
-
-
-class NativeAsset(Asset):
-
-    def __init__(self, denom: str, amount: str = "0"):
-        self.denom = denom
-        self.amount = amount
-
-    def get_info(self) -> AssetInfo:
-        return AssetInfo(AssetClass.NATIVE_TOKEN, self.denom)
-
-    def get_asset(self) -> Dict[str, Any]:
-        return {
-            "info": self.get_info().to_dict(),
-            "amount": self.amount,
-        }
-
-    def get_denom(self) -> str:
-        return self.denom
-
-    def to_coin(self) -> Coin:
-        return Coin(self.denom, int(self.amount))
-
-    def is_native(self) -> bool:
-        return True
 
 
 def parse_dict_to_asset(d: dict) -> Asset:
@@ -217,35 +101,39 @@ def parse_dict_to_order(d: dict) -> Order:
         assert key in order, "Expected key={} in the order dict={}".format(
             key, order)
     return Order(id=order['id'],
-                 token_allowance=d.get("token_allowance", ""),
+                 token_allowance=int(d.get("token_allowance", "0")),
                  initial_asset=parse_dict_to_asset(
                      order["initial_asset"]),
                  target_asset=parse_dict_to_asset_info(
                      order["target_asset"]),
                  interval=order["interval"],
                  last_purchase=order["last_purchase"],
-                 dca_amount=order["dca_amount"])
+                 dca_amount=int(order["dca_amount"]))
 
 
-def parse_hops_from_string(hops: str,  whithelisted_tokens: List[dict],
-                           whithelisted_hops: List[dict]) -> List[AstroSwap]:
+def parse_hops_from_string(hops: str,  whithelisted_tokens: List[WhitelistedToken],
+                           whithelisted_hops: List[WhitelistedHop]) -> List[AstroSwap]:
+
+    logger.debug("parse_hops_from_string: hops: {}".format(hops))
+
     output: List[AstroSwap] = []
 
     map_wt = {}
     for wt in whithelisted_tokens:
-        ac = AssetClass.NATIVE_TOKEN if wt["asset_class"] == AssetClass.NATIVE_TOKEN.value else AssetClass.TOKEN
-        map_wt[wt["denom"]] = AssetInfo(ac, wt["denom"])
+        ac = AssetClass.NATIVE_TOKEN if wt.asset_class == AssetClass.NATIVE_TOKEN.value else AssetClass.TOKEN
+        map_wt[wt.denom] = AssetInfo(ac, str(wt.denom))
     map_hops = {}
     for h in whithelisted_hops:
-        map_hops[h["id"]] = h
+        map_hops[h.id] = h
 
+    logger.debug("map_hops: {}".format(str(map_hops)))
     l = hops.split("><")
     length = len(l)
     if length == 0:
         assert length > 0
 
-    for hop in l:
-        hop = l[0].replace("<", "").replace(">", "")
+    for h in l:
+        hop = h.replace("<", "").replace(">", "")
         hop_id = int(hop)
         if hop.__contains__("inverse-"):
             hop_id = int(hop.replace("inverse-", ""))
@@ -253,8 +141,8 @@ def parse_hops_from_string(hops: str,  whithelisted_tokens: List[dict],
         assert hop_id in map_hops, "Missing hop_id={} in the whitelisted_hop={}".format(
             hop_id, whithelisted_hops)
 
-        offer_denom = map_hops[hop_id]['offer_denom']
-        ask_denom = map_hops[hop_id]['ask_denom']
+        offer_denom: str = map_hops[hop_id].offer_denom
+        ask_denom: str = map_hops[hop_id].ask_denom
         assert offer_denom in map_wt, "Missing offer_denom={} in the whithelisted_tokens={}".format(offer_denom,
                                                                                                     whithelisted_tokens)
         assert ask_denom in map_wt, "Missing ask_denom={} in the whithelisted_tokens={}".format(ask_denom,
@@ -266,10 +154,24 @@ def parse_hops_from_string(hops: str,  whithelisted_tokens: List[dict],
             output.append(AstroSwap(ask_asset_info, offer_asset_info))
         else:
             output.append(AstroSwap(offer_asset_info, ask_asset_info))
+    logger.info("SwapOperations:",  output)
     return output
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.DEBUG)
+    # logging.getLogger('sqlalchemy.engine.Engine').setLevel(logging.INFO)
+
+    hops_string = "<2><3>"
+
+    db = Database()
+    db.get_whitelisted_tokens()
+
+    wl_hops = db.get_whitelisted_hops()
+    print(wl_hops)
+    parse_hops_from_string(
+        hops_string, db.get_whitelisted_tokens(), wl_hops)
+
     pass
     # w = [
     #     TokenAsset(network["tokenAddresses"]["CCC"], "100000"),

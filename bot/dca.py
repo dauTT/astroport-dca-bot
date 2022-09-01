@@ -12,6 +12,11 @@ from terra_sdk.client.lcd import LCDClient, Wallet
 from typing import List, Any, Optional
 from bot.util import perform_transaction, Asset, AssetInfo, \
     perform_transactions, AstroSwap, read_artifact
+import json
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class DCA:
@@ -35,11 +40,15 @@ class DCA:
     def query_get_user_dca_orders(self, user_address: str) -> List[dict]:
         assert self.dca_address != "", "No dca contract address given"
 
-        return self.terra.wasm.contract_query(self.dca_address, {
+        output = self.terra.wasm.contract_query(self.dca_address, {
             "user_dca_orders": {
                 "user": user_address
             }
         })
+
+        logger.info("""query_get_user_dca_orders({}):
+        {} """.format(user_address, json.dumps(output, indent=4)))
+        return output
 
     def query_get_user_config(self, user_address: str) -> dict:
         assert self.dca_address != "", "No dca contract address given"
