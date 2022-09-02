@@ -1,6 +1,7 @@
 from sqlalchemy import Column, String, Integer, ForeignKey
 from bot.db.base import Base
 from bot.type import Order
+from bot.db.table import row_string
 
 
 class DcaOrder(Base):
@@ -44,10 +45,4 @@ class DcaOrder(Base):
         return "{}-{}".format(user_address, order_id)
 
     def __repr__(self) -> str:
-        repr = ["{}={}".format(k, self.__dict__[k])
-                for k in self.__dict__.keys() if k != "_sa_instance_state"]
-        nice_string = """
-    """.join(repr)
-        return """[
-    {}
-]""".format(nice_string)
+        return row_string(self)

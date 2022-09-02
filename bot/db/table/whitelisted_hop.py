@@ -4,6 +4,7 @@ from sqlalchemy import Column, String, Integer, ForeignKey
 from bot.db.base import Base
 from bot.type import AstroSwap
 from sqlalchemy import event, DDL
+from bot.db.table import row_string
 
 
 class WhitelistedHop(Base):
@@ -37,13 +38,7 @@ class WhitelistedHop(Base):
         return "-".join(l)
 
     def __repr__(self) -> str:
-        repr = ["{}={}".format(k, self.__dict__[k])
-                for k in self.__dict__.keys() if k != "_sa_instance_state"]
-        nice_string = """
-    """.join(repr)
-        return """[
-    {}
-]""".format(nice_string)
+        return row_string(self)
 
 
 # We use a trigget to autoincrement column id becaucse the autoincrement feature does not

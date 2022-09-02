@@ -1,6 +1,7 @@
-from sqlalchemy import Column, String, Integer, Date
+from sqlalchemy import Column, String
 from bot.db.base import Base
 from bot.type import Asset, AssetClass
+from bot.db.table import row_string
 
 
 class WhitelistedFeeAsset(Base):
@@ -17,10 +18,4 @@ class WhitelistedFeeAsset(Base):
         self.amount = asset.get_asset()["amount"]
 
     def __repr__(self) -> str:
-        repr = ["{}={}".format(k, self.__dict__[k])
-                for k in self.__dict__.keys() if k != "_sa_instance_state"]
-        nice_string = """
-    """.join(repr)
-        return """[
-    {}
-]""".format(nice_string)
+        return row_string(self)
