@@ -1,4 +1,3 @@
-from terra_sdk.core import Coin, Coins
 import json
 import os
 from terra_sdk.client.lcd.api.tx import CreateTxOptions
@@ -13,6 +12,7 @@ from bot.db.table.whitelisted_token import WhitelistedToken
 from bot.type import AssetClass, Asset, AssetInfo, Order, \
     NativeAsset, TokenAsset, AstroSwap
 from bot.db.database import Database
+# from pandas import DataFrame
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +41,7 @@ def perform_transactions(
 ) -> BlockTxBroadcastResult:
     signed_txs = create_transactions(wallet, msgs)
     output = broadcast_transaction(terra, signed_txs)
-    logger.info("""perform_transactions output: """, output)
+    logger.debug("""perform_transactions output: """, output)
     return output
 
 
@@ -66,7 +66,7 @@ def perform_transaction(
 ) -> BlockTxBroadcastResult:
     signed_tx = create_transaction(wallet, msg)
     output = broadcast_transaction(terra, signed_tx)
-    print("perform_transaction output:", output)
+    logger.debug("""perform_transactions output: """, output)
     return output
 
 
@@ -114,7 +114,7 @@ def parse_dict_to_order(d: dict) -> Order:
 def parse_hops_from_string(hops: str,  whithelisted_tokens: List[WhitelistedToken],
                            whithelisted_hops: List[WhitelistedHop]) -> List[AstroSwap]:
 
-    logger.debug("parse_hops_from_string: hops: {}".format(hops))
+    logger.info("parse_hops_from_string: hops: {}".format(hops))
 
     output: List[AstroSwap] = []
 
@@ -126,7 +126,7 @@ def parse_hops_from_string(hops: str,  whithelisted_tokens: List[WhitelistedToke
     for h in whithelisted_hops:
         map_hops[h.id] = h
 
-    logger.debug("map_hops: {}".format(str(map_hops)))
+    logger.debug("map_hops={}".format(map_hops))
     l = hops.split("><")
     length = len(l)
     if length == 0:
@@ -154,12 +154,17 @@ def parse_hops_from_string(hops: str,  whithelisted_tokens: List[WhitelistedToke
             output.append(AstroSwap(ask_asset_info, offer_asset_info))
         else:
             output.append(AstroSwap(offer_asset_info, ask_asset_info))
-    logger.info("SwapOperations:",  output)
+
+    logger.debug("SwapOperations: {}".format(output))
     return output
 
 
+# def to_df(table: List[Any]) -> DataFrame:
+#     [column.key for column in Any.__table__.columns]
+
+
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.INFO)
     # logging.getLogger('sqlalchemy.engine.Engine').setLevel(logging.INFO)
 
     hops_string = "<2><3>"
@@ -168,15 +173,8 @@ if __name__ == "__main__":
     db.get_whitelisted_tokens()
 
     wl_hops = db.get_whitelisted_hops()
-    print(wl_hops)
+    # print(wl_hops)
     parse_hops_from_string(
         hops_string, db.get_whitelisted_tokens(), wl_hops)
 
     pass
-    # w = [
-    #     TokenAsset(network["tokenAddresses"]["CCC"], "100000"),
-    #     TokenAsset(network["tokenAddresses"]["AAA"], "200000"),
-    #     NativeAsset("uluna", "300000"),
-    # ]
-
-    # dca.execute_update_config(whitelisted_fee_assets=w)

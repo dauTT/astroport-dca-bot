@@ -6,6 +6,7 @@ from bot.db.table.whitelisted_token import WhitelistedToken
 from bot.db.table.whitelisted_hop import WhitelistedHop
 from bot.db.table.whitelisted_fee_asset import WhitelistedFeeAsset
 from bot.db.table.user_tip_balance import UserTipBalance
+from bot.db.table.purchase_history import PurchaseHistory
 from bot.db.base import session_factory, engine, Base
 from sqlalchemy import exc, inspect, text, delete
 from sqlalchemy.orm import scoped_session
@@ -18,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 # Generate database schema
-# Base.metadata.drop_all(bind=engine)
+#  Base.metadata.drop_all(bind=engine)
 Base.metadata.create_all(bind=engine)
 Session = scoped_session(session_factory)
 
@@ -47,22 +48,24 @@ class Database:
         return output
 
     @db_persist
-    def insert_or_update(self, table_object):
+    def insert_or_update(self, table_object: Any):
         session = Session()
-
-        logger.debug("insert_or_update: table_object={}, {} ".format(
-            table_object.__tablename__,
-            ["{}={}".format(k, table_object.__dict__[k])
-             for k in table_object.__dict__ if k != "_sa_instance_state"]))
-
         return session.merge(table_object)
 
-    @db_persist
+    @ db_persist
     def delete(self, table_object, filter: Any):
-        # User.id.in_([1, 2, 3])
         session = Session()
-        sql = delete(table_object).where(filter)
-        session.execute(sql)
+        stmt = delete(table_object).where(filter)
+        session.execute(stmt)
+
+    @ db_persist
+    def log_purchase_history(self, order_id: str, dca_amount: int,
+                             hops: str, fee_redeem: str, success: bool,
+                             err_msg: str):
+        session = Session()
+        ph = PurchaseHistory(order_id, dca_amount, hops,
+                             fee_redeem, success, err_msg)
+        session.add(ph)
 
     def drop_table(self, table: Any):
         """ :param table: the class which model the table in the database
@@ -91,6 +94,10 @@ class Database:
         logger.info("result: {}".format(json.dumps(result, indent=4)))
         return result
 
+    def exec_sql(self, sql: str):
+        sql_formatted = text(sql)
+        engine.execute(sql_formatted)
+
     def get_users(self) -> List[User]:
         return self.query(User)
 
@@ -103,23 +110,28 @@ class Database:
         filters = [] if id == "" else [DcaOrder.id == id]
         return self.query(DcaOrder, filters)
 
-    def get_whitelisted_fee_asset(self) -> List[WhitelistedFeeAsset]:
-        return self.query(WhitelistedFeeAsset)
+    def get_purchase_history(self,  order_id: str = "") -> List[PurchaseHistory]:
+        filters = [] if order_id == "" else [
+            PurchaseHistory.order_id == order_id]
+        return self.query(PurchaseHistory, filters)
 
     def get_user_tip_balance(self, user_address: str = "") -> List[UserTipBalance]:
         filters = [] if user_address == "" else [
             UserTipBalance.user_address == user_address]
         return self.query(UserTipBalance, filters)
 
-    @lru_cache(maxsize=10)
+    def get_whitelisted_fee_asset(self) -> List[WhitelistedFeeAsset]:
+        return self.query(WhitelistedFeeAsset)
+
+    @ lru_cache(maxsize=10)
     def get_whitelisted_tokens(self) -> List[WhitelistedToken]:
         return self.query(WhitelistedToken)
 
-    @lru_cache(maxsize=10)
+    @ lru_cache(maxsize=10)
     def get_whitelisted_hops(self) -> List[WhitelistedHop]:
         return self.query(WhitelistedHop)
 
-    @lru_cache(maxsize=10, typed=True)
+    @ lru_cache(maxsize=10, typed=True)
     def get_whitelisted_hops_complete(self, start_denom: str = "", target_denom: str = "", hops_len: int = 0) -> List[dict]:
         """ This view provide the complete list of hops (swap operations) that the bot can chose from.
         """
@@ -186,9 +198,16 @@ if __name__ == "__main__":
 
     db = Database()
 
-    result = db.get_dca_orders()
-    for (i, r) in enumerate(result):
-        print(r)
+    for a in db.get_tables_names():
+        print(a)
+    # db.exec_sql("DROP TABLE apscheduler_jobs")
+
+    # db.get_dca_orders()
+
+    # result = db.sql_query(
+    #     "SELECT sql FROM sqlite_master WHERE name='apscheduler_jobs'")
+    # for (i, r) in enumerate(result):
+    #     print(r)
 
  #   db.delete(DcaOrder, DcaOrder.id ==
   #            "terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v-2")

@@ -38,6 +38,7 @@ class DCA:
         })
 
     def query_get_user_dca_orders(self, user_address: str) -> List[dict]:
+        logger.info("query_get_user_dca_orders({})".format(user_address))
         assert self.dca_address != "", "No dca contract address given"
 
         output = self.terra.wasm.contract_query(self.dca_address, {
@@ -46,7 +47,7 @@ class DCA:
             }
         })
 
-        logger.info("""query_get_user_dca_orders({}):
+        logger.debug("""query_get_user_dca_orders({}):
         {} """.format(user_address, json.dumps(output, indent=4)))
         return output
 

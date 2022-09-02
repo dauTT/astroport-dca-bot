@@ -1,25 +1,20 @@
+import traceback
 from bot.db.table.dca_order import DcaOrder
 from bot.type import AssetClass
-from util import AstroSwap, NativeAsset,\
-    read_artifact, Asset, parse_hops_from_string
-from terra_sdk.client.localterra import LocalTerra
+from bot.util import AstroSwap, NativeAsset,\
+    Asset, parse_hops_from_string
 from typing import List
 from bot.db.database import Database
-from bot.dca import DCA
 from bot.db_sync import Sync
 import logging
 
 logger = logging.getLogger(__name__)
 
 
-class ExecOrder:
+class ExecOrder(Sync):
 
     def __init__(self):
-        self.network = read_artifact("localterra")
-        self.terra = LocalTerra()
-        self.dca = DCA(
-            self.terra, self.terra.wallets["test1"], self.network["dcaAddress"])
-        self.db = Database()
+        super().__init__()
 
     def build_fee_redeem(self, user_address: str,  hops_len: int) -> List[Asset]:
         """ The bot will try to take fee from the first asset in user_tip_balance.
@@ -78,45 +73,68 @@ class ExecOrder:
         return parse_hops_from_string(hops_string, db.get_whitelisted_tokens(), db.get_whitelisted_hops())
 
     def purchase(self, order: DcaOrder):
+        logger.info(
+            "**************** Purchase Order: {} *******************".format(order))
+
         hops = self.build_hops(str(order.initial_asset_denom),
                                str(order.target_asset_denom),
                                order.max_hops.real)
 
-        fee_redeem = self.build_fee_redeem(str(order.user_address),  len(hops))
+        fee_redeem = self.build_fee_redeem(
+            str(order.user_address),  len(hops))
 
-        self.dca.execute_perform_dca_purchase(
-            str(order.user_address), order.dca_order_id.real, hops, fee_redeem)
+        err_msg = ""
+        success = True
+        try:
+            self.dca.execute_perform_dca_purchase(
+                str(order.user_address), order.dca_order_id.real, hops, fee_redeem)
+        except:
+            err_msg = traceback.format_exc()
+            success = False
+
+        self.db.log_purchase_history(str(order.id), int(str(order.dca_amount)),  "{}".format(
+            hops),  "{}".format([f.get_asset() for f in fee_redeem]), success, err_msg)
+
+    def purchase_and_sync(self, order_id: str):
+        orders = self.db.get_dca_orders(order_id)
+        if len(orders) == 0:
+            logger.info("oder_id={} does not exist!".format(order_id))
+
+        assert len(
+            orders) == 1, "Got multiple order with the same id: {}".format(orders)
+
+        order = orders[0]
+        user_address = order.user_address
+        self.purchase(order)
+        self.sync_user_data(user_address)
 
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     # logging.getLogger('sqlalchemy.engine.Engine').setLevel(logging.DEBUG)
 
-    terra = LocalTerra()
-
-    db = Database()
+    # db = Database()
 
     # res = db.get_dca_orders("terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v-1")
     # order = res[0]
     # for r in res:
     #     print(r)
 
-    exec = ExecOrder()
+   # exec = ExecOrder()
 
     # exec.dca.query_get_user_dca_orders(
     #     "terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v")
 
-    res = db.get_dca_orders("terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v-1")
-    order = res[0]
+    # res = db.get_dca_orders("terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v-1")
+    # order = res[0]
 
     # db.get_user_tip_balance()
-    # exec.purchase(order)
+    # purchase_and_sync(order)
 
     # db.get_dca_orders("terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v-1")
     # order = res[0]
     # for r in res:
     #     print(r)
-
     # id = 1  # --> native target asset
     # id = 3  # --> token target asset
     # execute_purchase(user_address, id)
