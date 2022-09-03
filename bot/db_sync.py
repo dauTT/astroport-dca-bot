@@ -48,6 +48,7 @@ class Sync:
         self.db.insert_or_update(u3)
 
     def _sync_user_tip_balance(self, user_address: str,  user_tip_balances: List[dict]):
+        logger.debug("_sync_user_tip_balance")
         user_tip_ids = []
         # insert or update user tip
         for a in user_tip_balances:
@@ -62,6 +63,7 @@ class Sync:
             UserTipBalance.id.not_in(user_tip_ids)))  # type: ignore
 
     def _sync_dca_oders(self, user_address: str, max_spread: str, max_hops: int, orders: List[dict]):
+        logger.debug("_sync_dca_oders")
         user_order_ids = []
         # insert or update user order
         for o in orders:
@@ -138,6 +140,8 @@ class Sync:
         """ This method will sync the user oders and tip balances to the local db of the bot.
             We will schedule this method to run frequently. 
         """
+        logger.info("sync_user_data: user={}".format(user_address))
+
         cfg_dca = self.get_cfg_dca()
         cfg_user = self.dca.query_get_user_config(user_address)
         dca_oders = self.dca.query_get_user_dca_orders(user_address)
@@ -177,7 +181,7 @@ if __name__ == "__main__":
    # s.db.get_dca_orders()
     # s.db.get_whitelisted_hops()
     # s.db.get_whitelisted_hops_complete()
-    s.db.get_user_tip_balance()
+    # s.db.get_user_tip_balance()
 
     # print(s.dca.query_get_user_dca_orders(
     #     terra.wallets["test1"].key.acc_address))

@@ -1,17 +1,9 @@
-import os
-from time import sleep
-from bot.exec_order import ExecOrder
 import logging
 from logging.handlers import RotatingFileHandler
-import sys
-from datetime import datetime, time
-
+from datetime import datetime
 from apscheduler.schedulers.blocking import BlockingScheduler
 from datetime import datetime, timedelta
-
-
-from terra_sdk.client.localterra import LocalTerra
-from bot.util import read_artifact
+from bot.exec_order import ExecOrder
 from bot.config import LOG_PATH_FILE
 
 
@@ -23,90 +15,71 @@ def init_log(logging_level):
     formatter = logging.Formatter(format)
 
     file_handler = RotatingFileHandler(LOG_PATH_FILE,
-                                       maxBytes=1024 * 1024 * 50,
-                                       backupCount=10)
+                                       maxBytes=1024 * 1024 * 10,
+                                       backupCount=4)
     file_handler.setLevel(logging_level)
     file_handler.setFormatter(formatter)
     logger.addHandler(file_handler)
 
-    stream_handler = logging.StreamHandler(sys.stdout)
-    stream_handler.setLevel(logging_level)
-    stream_handler.setFormatter(formatter)
-    logger.addHandler(stream_handler)
-
-    # logging.getLogger('sqlalchemy.engine.Engine').setLevel(logging.INFO)
-    logging.getLogger('bot.db.database').setLevel(logging_level)
-    # logging.getLogger('apscheduler').setLevel(logging.INFO)
-
     return logger
 
 
-if __name__ == "__main__":
-    logger = init_log(logging.DEBUG)
+logger = init_log(logging.INFO)
+
+
+def start():
+    """
+        When the bot start it will reschedule all the orders in the DB, regardless
+        of whether they have been already schedule in the past or not.
+    """
     logger.info("*************** BOT START ****************************")
-
-    network = read_artifact("localterra")
-    terra = LocalTerra()
     exec = ExecOrder()
-
     oders = exec.db.get_dca_orders()
+    # exec.db.exec_sql("DROP TABLE dca_order")
+    # exec.purchase_and_sync("terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v-1")
+    # exec.purchase_and_sync(str(oders[1].id))
+    # exec.purchase_and_sync(str(oders[2].id))
+    # exec.purchase_and_sync(str(oders[3].id))
 
-    # exec.db.exec_sql("DROP TABLE purchase_history")
+    if True:
+        scheduler = BlockingScheduler()
 
-    exec.purchase_and_sync(str(oders[0].id))
+        delta = 20
+        for order in oders:
 
-    exec.db.get_purchase_history()
+            next_run_time = datetime.fromtimestamp(
+                order.interval.real + order.last_purchase.real)
 
-    # if True:
-    #     for order in oders:
-    #         print(order)
-    #         _day, _time = parse_time_seconds(
-    #             order.last_purchase.real + order.interval.real)
+            if next_run_time < datetime.now():
+                next_run_time = datetime.now() + timedelta(seconds=delta)
+                delta += 60
 
-    #         schedule_on(_day).at(_time).do(
-    #             purchase_and_sync_once, order.id).tag(order.id)
+            scheduler.add_job(exec.purchase_and_sync, 'date',
+                              run_date=next_run_time,  id=order.id,  args=[order.id, scheduler])
 
-    #         # schedule do(purchase_and_sync_once, order.id).tag(order.id)
+            # for job in scheduler.get_jobs():
+            #     logger.debug(job.__slots__)
+            #     logger.debug(job.id, job.trigger, job.name)
 
-    #         # schedule.every(order.interval.real).seconds.do(
-    #         #    exec.purchase_and_sync, order.id).tag(order.id)
-    #     i = 0
-    #     while True:
+            logger.debug(
+                "update order_id={}: schedule=True, next_run_time={}".format(
+                    order.id, next_run_time))
+            order.schedule = True
+            order.next_run_time = next_run_time
+            exec.db.insert_or_update(order)
 
-    #         # Checks whether a scheduled task
-    #         # is pending to run or not
+        try:
+            scheduler.start()
 
-    #         # if i == 0:
-    #         #     schedule.run_all()
-    #         #     i += 1
-    #         all_jobs = schedule.get_jobs()
-    #         print(all_jobs)
-    #         schedule.run_pending()
-    #         sleep(1)
+        except (KeyboardInterrupt, SystemExit):
+            # Not strictly necessary if daemonic mode is enabled but should be done if possible
+            scheduler.shutdown()
 
-    # scheduler = BlockingScheduler()
 
-    # dd = datetime.now() + timedelta(seconds=3)
-    # scheduler.add_job(tick, 'date', run_date=dd, args=['TICK'])
+if __name__ == "__main__":
+    logger = init_log(logging.INFO)
+    # logging.getLogger('sqlalchemy.engine.Engine').setLevel(logging.INFO)
+    # logging.getLogger('bot.db.database').setLevel(logging.INFO)
+    logging.getLogger('apscheduler').setLevel(logging.DEBUG)
 
-    # dd = datetime.now() + timedelta(seconds=6)
-    # scheduler.add_job(tick, 'date', run_date=dd, kwargs={'text': 'TOCK'})
-
-    # for order in oders:
-    #     start_time = datetime.fromtimestamp(
-    #         order.interval.real + order.last_purchase.real + 1400)
-
-    #     scheduler.add_job(exec.purchase_and_sync, 'date',
-    #                       run_date=start_time,  id=order.id,  args=[order.id])
-
-    # try:
-
-    #     print(scheduler.get_jobs())
-
-    #     scheduler.start()
-
-    #     print(scheduler.get_jobs())
-
-    # except (KeyboardInterrupt, SystemExit):
-    #     # Not strictly necessary if daemonic mode is enabled but should be done if possible
-    #     scheduler.shutdown()
+    start()

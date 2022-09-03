@@ -3,9 +3,11 @@ from bot.db.table.dca_order import DcaOrder
 from bot.type import AssetClass
 from bot.util import AstroSwap, NativeAsset,\
     Asset, parse_hops_from_string
-from typing import List
+from typing import List, Optional
 from bot.db.database import Database
 from bot.db_sync import Sync
+from apscheduler.schedulers.blocking import BlockingScheduler
+from datetime import datetime, timedelta
 import logging
 
 logger = logging.getLogger(__name__)
@@ -78,16 +80,18 @@ class ExecOrder(Sync):
         logger.info("""**************** Purchase Order *******************
             {}""".format(order))
 
-        hops = self.build_hops(str(order.initial_asset_denom),
-                               str(order.target_asset_denom),
-                               order.max_hops.real)
-
-        fee_redeem = self.build_fee_redeem(
-            str(order.user_address),  len(hops))
-
         err_msg = ""
         success = True
+        hops = []
+        fee_redeem = []
         try:
+            hops = self.build_hops(str(order.initial_asset_denom),
+                                   str(order.target_asset_denom),
+                                   order.max_hops.real)
+
+            fee_redeem = self.build_fee_redeem(
+                str(order.user_address),  len(hops))
+
             self.dca.execute_perform_dca_purchase(
                 str(order.user_address), order.dca_order_id.real, hops, fee_redeem)
         except:
@@ -103,7 +107,7 @@ class ExecOrder(Sync):
                                                  for f in fee_redeem]),
                                      success, err_msg)
 
-    def purchase_and_sync(self, order_id: str):
+    def purchase_and_sync(self, order_id: str, scheduler: Optional[BlockingScheduler] = None):
         orders = self.db.get_dca_orders(order_id)
         if len(orders) == 0:
             logger.info("oder_id={} does not exist!".format(order_id))
@@ -112,9 +116,37 @@ class ExecOrder(Sync):
             orders) == 1, "Got multiple order with the same id: {}".format(orders)
 
         order = orders[0]
-        user_address = order.user_address
+        user_address = str(order.user_address)
         self.purchase(order)
         self.sync_user_data(user_address)
+
+        if scheduler is not None:
+            self.reschedule(user_address, scheduler)
+
+    def reschedule(self, user_address: str, scheduler: BlockingScheduler):
+        delta = 20
+        orders = self.db.get_dca_orders(
+            user_address=user_address, schedule=[False])
+        for order in orders:
+            next_run_time = datetime.fromtimestamp(
+                order.interval.real + order.last_purchase.real)
+            if next_run_time < datetime.now():
+                next_run_time = datetime.now() + timedelta(seconds=delta)
+                delta += 60
+
+            scheduler.add_job(self.purchase_and_sync, 'date',
+                              run_date=next_run_time,  id=order.id,  args=[order.id, scheduler])
+
+            # for job in scheduler.get_jobs():
+            #     # logger.debug(job.__slots__)
+            #     logger.debug(job.id, job.trigger, job.name)
+
+            logger.debug(
+                "update order_id={}: schedule=True, next_run_time={}".format(
+                    order.id, next_run_time))
+            order.schedule = True
+            order.next_run_time = next_run_time
+            self.db.insert_or_update(order)
 
 
 if __name__ == "__main__":

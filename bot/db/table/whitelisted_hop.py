@@ -1,9 +1,7 @@
 
-from sqlalchemy.schema import DDL
-from sqlalchemy import Column, String, Integer, ForeignKey
+from sqlalchemy import Column, String, Integer, ForeignKey, event, DDL
 from bot.db.base import Base
 from bot.type import AstroSwap
-from sqlalchemy import event, DDL
 from bot.db.table import row_string
 
 

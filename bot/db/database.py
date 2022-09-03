@@ -20,7 +20,8 @@ logger = logging.getLogger(__name__)
 
 
 # Generate database schema
-#  Base.metadata.drop_all(bind=engine)
+
+# Base.metadata.drop_all(bind=engine)
 Base.metadata.create_all(bind=engine)
 Session = scoped_session(session_factory)
 
@@ -85,6 +86,8 @@ class Database:
             query = query.filter(f)
 
         result = query.all()
+
+        session.expunge_all()
         logger.debug("result query table: {}, filters={}: {}".format(
             table_object.__tablename__,
             filters, result))
@@ -107,13 +110,18 @@ class Database:
     def get_users(self) -> List[User]:
         return self.query(User)
 
-    def get_dca_orders(self, id: str = "") -> List[DcaOrder]:
+    def get_dca_orders(self, id: str = "",  user_address: str = "", schedule: List[bool] = [False, True]) -> List[DcaOrder]:
         """
             :params str id: the identifier od the order which is a contatenation of
                             the user address and the dca contract order id.
                             example: id=terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v-123
         """
         filters = [] if id == "" else [DcaOrder.id == id]
+        if user_address != "":
+            filters.append(DcaOrder.user_address == user_address)
+        if len(schedule) == 1:
+            filters.append(DcaOrder.schedule == schedule[0])
+
         return self.query(DcaOrder, filters)
 
     def get_purchase_history(self,  order_id: str = "") -> List[PurchaseHistory]:
@@ -212,7 +220,7 @@ if __name__ == "__main__":
     #     print(a)
     # db.exec_sql("DROP TABLE apscheduler_jobs")
 
-    db.get_dca_orders()
+    db.get_dca_orders(schedule=[True])
 
     # result = db.sql_query(
     #     "SELECT sql FROM sqlite_master WHERE name='apscheduler_jobs'")
