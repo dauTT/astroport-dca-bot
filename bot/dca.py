@@ -38,7 +38,7 @@ class DCA:
         })
 
     def query_get_user_dca_orders(self, user_address: str) -> List[dict]:
-        logger.info("query_get_user_dca_orders({})".format(user_address))
+        logger.debug("query_get_user_dca_orders")
         assert self.dca_address != "", "No dca contract address given"
 
         output = self.terra.wasm.contract_query(self.dca_address, {
@@ -47,11 +47,12 @@ class DCA:
             }
         })
 
-        logger.debug("""query_get_user_dca_orders({}):
+        logger.debug(""" result :
         {} """.format(user_address, json.dumps(output, indent=4)))
         return output
 
     def query_get_user_config(self, user_address: str) -> dict:
+        logger.debug("query_get_user_config")
         assert self.dca_address != "", "No dca contract address given"
 
         return self.terra.wasm.contract_query(self.dca_address, {
@@ -175,6 +176,8 @@ class DCA:
 
     def execute_perform_dca_purchase(self, user_address: str, id: int, hops: List[AstroSwap],
                                      fee_redeem: List[Asset]):
+        logger.info("***** call dca.execute_perform_dca_purchase: *****")
+        logger.debug("hops:{}, fee_reedem={}".format(hops, fee_redeem))
 
         msg = MsgExecuteContract(
             self.wallet.key.acc_address,

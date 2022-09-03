@@ -112,7 +112,7 @@ def parse_dict_to_order(d: dict) -> Order:
 def parse_hops_from_string(hops: str,  whithelisted_tokens: List[WhitelistedToken],
                            whithelisted_hops: List[WhitelistedHop]) -> List[AstroSwap]:
 
-    logger.info("parse_hops_from_string: hops: {}".format(hops))
+    logger.debug("parse_hops_from_string: hops: {}".format(hops))
 
     output: List[AstroSwap] = []
 
