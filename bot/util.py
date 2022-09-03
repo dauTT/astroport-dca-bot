@@ -11,8 +11,6 @@ from bot.db.table.whitelisted_hop import WhitelistedHop
 from bot.db.table.whitelisted_token import WhitelistedToken
 from bot.type import AssetClass, Asset, AssetInfo, Order, \
     NativeAsset, TokenAsset, AstroSwap
-from bot.db.database import Database
-# from pandas import DataFrame
 
 logger = logging.getLogger(__name__)
 
@@ -159,22 +157,19 @@ def parse_hops_from_string(hops: str,  whithelisted_tokens: List[WhitelistedToke
     return output
 
 
-# def to_df(table: List[Any]) -> DataFrame:
-#     [column.key for column in Any.__table__.columns]
-
-
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
+    # logging.basicConfig(level=logging.INFO)
     # logging.getLogger('sqlalchemy.engine.Engine').setLevel(logging.INFO)
+    # from bot.db.database import Database
 
-    hops_string = "<2><3>"
+    # hops_string = "<2><3>"
 
-    db = Database()
-    db.get_whitelisted_tokens()
+    # db = Database()
+    # db.get_whitelisted_tokens()
 
-    wl_hops = db.get_whitelisted_hops()
-    # print(wl_hops)
-    parse_hops_from_string(
-        hops_string, db.get_whitelisted_tokens(), wl_hops)
+    # wl_hops = db.get_whitelisted_hops()
+    # # print(wl_hops)
+    # parse_hops_from_string(
+    #     hops_string, db.get_whitelisted_tokens(), wl_hops)
 
     pass

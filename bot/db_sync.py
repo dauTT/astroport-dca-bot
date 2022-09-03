@@ -6,7 +6,7 @@ from bot.db.table.dca_order import DcaOrder
 from bot.db.table.whitelisted_token import WhitelistedToken
 from bot.db.table.whitelisted_hop import WhitelistedHop
 from bot.db.table.whitelisted_fee_asset import WhitelistedFeeAsset
-from dca import DCA
+from bot.dca import DCA
 from terra_sdk.client.localterra import LocalTerra
 from bot.util import AssetInfo, read_artifact, parse_dict_to_asset, \
     parse_dict_to_asset_info, parse_dict_to_order, AstroSwap
