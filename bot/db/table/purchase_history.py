@@ -17,6 +17,9 @@ class PurchaseHistory(Base):
     id = Column(Integer, primary_key=True)
     create_at = Column(DateTime, default=datetime.now())
     order_id = Column(String, ForeignKey("dca_order.id", ondelete="CASCADE"))
+    initial_amount = Column(Integer, nullable=False)
+    initial_denom = Column(String, nullable=False)
+    target_denom = Column(String, nullable=False)
     dca_amount = Column(Integer, nullable=False)
     # The actually hops which the bot has chosen to execute the purchase
     # of the target asset
@@ -27,8 +30,13 @@ class PurchaseHistory(Base):
     # If the purhcase was not successfull, the bot will report a err_msg
     err_msg = Column(String)
 
-    def __init__(self, order_id: str,  dca_amount: int, hops: str, fee_reedem, success: bool, err_msg: str):
+    def __init__(self, order_id: str, initial_amount: int, initial_denom: str,
+                 target_denom: str, dca_amount: int, hops: str,
+                 fee_reedem, success: bool, err_msg: str):
         self.order_id = order_id
+        self.initial_amount = initial_amount
+        self.initial_denom = initial_denom
+        self.target_denom = target_denom
         self.dca_amount = dca_amount
         self.hops = hops
         self.fee_reedem = fee_reedem

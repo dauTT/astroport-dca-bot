@@ -10,6 +10,7 @@ from bot.db.table.purchase_history import PurchaseHistory
 from bot.db.base import session_factory, engine, Base
 from sqlalchemy import exc, inspect, text, delete
 from sqlalchemy.orm import scoped_session
+from bot.db.pd_df import DF
 from typing import Any, List
 from functools import lru_cache
 import json
@@ -30,7 +31,7 @@ def db_persist(func):
         try:
             func(*args, **kwargs)
             session.commit()
-            logger.info("success calling db func: " + func.__name__)
+            logger.debug("success calling db func: " + func.__name__)
         except exc.SQLAlchemyError as e:
             logger.error(e.args)
             session.rollback()
@@ -59,11 +60,15 @@ class Database:
         session.execute(stmt)
 
     @ db_persist
-    def log_purchase_history(self, order_id: str, dca_amount: int,
-                             hops: str, fee_redeem: str, success: bool,
-                             err_msg: str):
+    def log_purchase_history(self, order_id: str, initial_amount: int,
+                             initial_denom: str, target_denom: str,
+                             dca_amount: int, hops: str, fee_redeem: str,
+                             success: bool, err_msg: str):
+        logger.info("log_purchase_history")
+
         session = Session()
-        ph = PurchaseHistory(order_id, dca_amount, hops,
+        ph = PurchaseHistory(order_id, initial_amount, initial_denom,
+                             target_denom, dca_amount, hops,
                              fee_redeem, success, err_msg)
         session.add(ph)
 
@@ -91,7 +96,8 @@ class Database:
         result = [dict(zip(list(cursor.keys()), list(r)))
                   for r in cursor.fetchall()]
 
-        logger.info("result: {}".format(json.dumps(result, indent=4)))
+        logger.debug("result: {}".format(
+            json.dumps(result, indent=4)))
         return result
 
     def exec_sql(self, sql: str):
@@ -191,6 +197,10 @@ class Database:
         """.format(filter_start_denom, filter_target_denom, filter_hops_len)
         return self.sql_query(sql)
 
+    @staticmethod
+    def get_pd_df():
+        return DF()
+
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
@@ -198,11 +208,11 @@ if __name__ == "__main__":
 
     db = Database()
 
-    for a in db.get_tables_names():
-        print(a)
+    # for a in db.get_tables_names():
+    #     print(a)
     # db.exec_sql("DROP TABLE apscheduler_jobs")
 
-    # db.get_dca_orders()
+    db.get_dca_orders()
 
     # result = db.sql_query(
     #     "SELECT sql FROM sqlite_master WHERE name='apscheduler_jobs'")

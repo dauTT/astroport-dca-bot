@@ -22,7 +22,7 @@ class ExecOrder(Sync):
             For each hop the bot can take a fee amount as configured in whitelisted_fee_assets.
             If user_tip_balance is not sufficient to pay the fees for the bot, this method will throw an error.
         """
-
+        logger.info("build_fee_redeem")
         user_tip_balances = self.db.get_user_tip_balance(user_address)
         whitelisted_fee_assets = self.db.get_whitelisted_fee_asset()
 
@@ -53,9 +53,11 @@ class ExecOrder(Sync):
                                                                            hops_len, hop_fee_map)
         assert h == 0, err_msg
 
+        logger.debug("fee_redeem: {}".format(fee_redeem))
         return fee_redeem
 
     def build_hops(self, start_denom: str, target_denom: str, hops_len: int) -> List[AstroSwap]:
+        logger.info("build_hops")
         db = Database()
 
         list_hops = db.get_whitelisted_hops_complete(
@@ -73,8 +75,8 @@ class ExecOrder(Sync):
         return parse_hops_from_string(hops_string, db.get_whitelisted_tokens(), db.get_whitelisted_hops())
 
     def purchase(self, order: DcaOrder):
-        logger.info(
-            "**************** Purchase Order: {} *******************".format(order))
+        logger.info("""**************** Purchase Order *******************
+            {}""".format(order))
 
         hops = self.build_hops(str(order.initial_asset_denom),
                                str(order.target_asset_denom),
@@ -92,8 +94,14 @@ class ExecOrder(Sync):
             err_msg = traceback.format_exc()
             success = False
 
-        self.db.log_purchase_history(str(order.id), int(str(order.dca_amount)),  "{}".format(
-            hops),  "{}".format([f.get_asset() for f in fee_redeem]), success, err_msg)
+        self.db.log_purchase_history(str(order.id), int(str(order.initial_asset_amount)),
+                                     str(order.initial_asset_denom), str(
+                                         order.target_asset_denom),
+                                     int(str(order.dca_amount)
+                                         ),  "{}".format(hops),
+                                     "{}".format([f.get_asset()
+                                                 for f in fee_redeem]),
+                                     success, err_msg)
 
     def purchase_and_sync(self, order_id: str):
         orders = self.db.get_dca_orders(order_id)
