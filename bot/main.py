@@ -4,7 +4,9 @@ from datetime import datetime
 from apscheduler.schedulers.blocking import BlockingScheduler
 from datetime import datetime, timedelta
 from bot.exec_order import ExecOrder
-from bot.config import LOG_PATH_FILE
+from bot.db_sync import Sync
+from bot.config import LOG_PATH_FILE, SYNC_USER_FREQ, SYNC_CFG_FREQ, \
+    SCHEDULE_ORDER_FREQ
 
 
 def init_log(logging_level):
@@ -37,20 +39,25 @@ def start():
     # exec.db.exec_sql("DROP TABLE  user")
     # exec.purchase_and_sync("terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v-1")
 
-    if True:
-        scheduler = BlockingScheduler()
-        oders = exec.db.get_dca_orders()
-        exec.schedule(oders, scheduler)
-        try:
-            scheduler.start()
+    scheduler = BlockingScheduler()
+    oders = exec.db.get_dca_orders()
+    exec.schedule_next_run(oders, scheduler)
 
-        except (KeyboardInterrupt, SystemExit):
-            # Not strictly necessary if daemonic mode is enabled but should be done if possible
-            scheduler.shutdown()
+    # schedule recurrening job
+    scheduler.add_job(exec.sync_users_data, 'interval', id="sync_users_data",
+                      minutes=SYNC_USER_FREQ)
+    scheduler.add_job(exec.sync_dca_cfg, 'interval', id="sync_dca_cfg",
+                      minutes=SYNC_CFG_FREQ)
+    scheduler.add_job(exec.schedule_orders, 'interval',
+                      minutes=SCHEDULE_ORDER_FREQ, id="schedule_orders",  args=[scheduler])
+
+    try:
+        scheduler.start()
+    except (KeyboardInterrupt, SystemExit):
+        scheduler.shutdown()
 
 
 if __name__ == "__main__":
-    logger = init_log(logging.INFO)
     # logging.getLogger('sqlalchemy.engine.Engine').setLevel(logging.INFO)
     # logging.getLogger('bot.db.database').setLevel(logging.INFO)
     logging.getLogger('apscheduler').setLevel(logging.DEBUG)
