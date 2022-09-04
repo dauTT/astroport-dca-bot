@@ -22,7 +22,7 @@ def write_artifact(data: Any, name: str):
     file_path = os.path.join(ARTIFACTS_PATH, name + ".json")
     with open(file_path, "w") as outfile:
         # Writing data to a file
-        json.dump(data, outfile, indent=4)
+        json.dump(data, outfile, indent=2)
 
 
 def read_artifact(name: str):

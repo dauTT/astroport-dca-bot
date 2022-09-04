@@ -108,7 +108,7 @@ class Database:
                   for r in cursor.fetchall()]
 
         logger.debug("result: {}".format(
-            json.dumps(result, indent=4)))
+            json.dumps(result, indent=2)))
         return result
 
     def exec_sql(self, sql: str):

@@ -29,13 +29,19 @@ class DCA:
     def set_dca_address(self, dca_address: str):
         self.dca_address = dca_address
 
+    def log_debug_output(self, output: dict):
+        logger.debug(""" result :
+        {} """.format(json.dumps(output, indent=2)))
+
     def get_whitelisted_astro_swaps(self):
         self.query_get_config()
 
     def get_astro_pools(self, fatctory_address):
-        return self.terra.wasm.contract_query(fatctory_address, {
+        output = self.terra.wasm.contract_query(fatctory_address, {
             "pairs": {}
         })
+        self.log_debug_output(output)
+        return output
 
     def query_get_user_dca_orders(self, user_address: str) -> List[dict]:
         logger.debug("query_get_user_dca_orders")
@@ -47,23 +53,29 @@ class DCA:
             }
         })
 
-        logger.debug(""" result :
-        {} """.format(user_address, json.dumps(output, indent=4)))
+        self.log_debug_output(output)
         return output
 
     def query_get_user_config(self, user_address: str) -> dict:
         logger.debug("query_get_user_config")
         assert self.dca_address != "", "No dca contract address given"
 
-        return self.terra.wasm.contract_query(self.dca_address, {
+        output = self.terra.wasm.contract_query(self.dca_address, {
             "user_config": {
                 "user": user_address
             }
         })
+        self.log_debug_output(output)
+        return output
 
     def query_get_config(self) -> dict:
+        logger.debug("query_get_config")
         assert self.dca_address != "", "No dca contract address given"
-        return self.terra.wasm.contract_query(self.dca_address, {"config": {}})
+        output = self.terra.wasm.contract_query(
+            self.dca_address, {"config": {}})
+
+        self.log_debug_output(output)
+        return output
 
     def instantiate(self, dca_code_id: int, msg: Any) -> str:
         instantiate_msg = MsgInstantiateContract(

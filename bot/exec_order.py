@@ -1,5 +1,6 @@
 import traceback
 from bot.db.table.dca_order import DcaOrder
+from bot.db.table.purchase_history import PurchaseHistory
 from bot.type import AssetClass
 from bot.util import AstroSwap, NativeAsset,\
     Asset, parse_hops_from_string
@@ -126,14 +127,28 @@ class ExecOrder(Sync):
 
             orders = self.db.get_dca_orders(
                 user_address=user_address, schedule=False)
-            if scheduler is not None:
-                self.schedule(orders, scheduler)
+            if len(orders) == 0:
+                logger.info("""Can't schedule next run time for order_id={1}. 
+                The order is either fully completed and removed from the dca_order table or 
+                the trigger 'reset_schedule' didn't work because something went wrong.
+                Check this query to investigate further: 
+
+                select * 
+                from {0} 
+                where 
+                    success = 0 
+                    and order_id = '{1}'
+                """.format(PurchaseHistory.__tablename__, order.id))
+            if scheduler is not None and len(orders) > 0:
+                self.schedule_next_run(orders, scheduler)
         except:
             err_msg = traceback.format_exc()
             calling_method = "purchase_and_sync"
             self.db.log_error(err_msg, calling_method, order_id)
 
-    def schedule(self, orders: List[DcaOrder], scheduler: BlockingScheduler):
+    def schedule_next_run(self, orders: List[DcaOrder], scheduler: BlockingScheduler):
+        """ Schedule for each order a one off job to be executed at a future date.
+        """
         delta = 20
         for order in orders:
             next_run_time = datetime.fromtimestamp(
@@ -145,12 +160,21 @@ class ExecOrder(Sync):
             scheduler.add_job(self.purchase_and_sync, 'date',
                               run_date=next_run_time,  id=order.id,  args=[order.id, scheduler])
 
-            logger.debug(
+            logger.info(
                 "update order_id={}: schedule=True, next_run_time={}".format(
                     order.id, next_run_time))
             order.schedule = True
             order.next_run_time = next_run_time
             self.db.insert_or_update(order)
+
+    def schedule_orders(self, scheduler: BlockingScheduler):
+        """ This method is basically like schedule_next_run but it does not depend
+            on the orders arguments. It will be schedule to run on regular basis to pick
+            up new orders which are not scheduled yet.
+        """
+        orders = self.db.get_dca_orders(schedule=False)
+        if len(orders) > 0:
+            self.schedule_next_run(orders, scheduler)
 
 
 if __name__ == "__main__":
@@ -164,10 +188,10 @@ if __name__ == "__main__":
     # for r in res:
     #     print(r)
 
-   # exec = ExecOrder()
+    e = ExecOrder()
 
-    # exec.dca.query_get_user_dca_orders(
-    #     "terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v")
+    e.dca.query_get_user_dca_orders(
+        "terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v")
 
     # res = db.get_dca_orders("terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v-1")
     # order = res[0]

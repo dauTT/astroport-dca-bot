@@ -145,7 +145,7 @@ class Sync:
             We will schedule this method to run frequently. 
         """
         logger.info(
-            "********* sync_user_data: user={} *********".format(user_address))
+            "****** sync_user_data: user={} ******".format(user_address))
 
         try:
             cfg_dca = self.get_cfg_dca()
@@ -164,6 +164,7 @@ class Sync:
             self.db.log_error(err_msg, "sync_user_data", "", user_address)
 
     def sync_users_data(self):
+        logger.info("************ sync_users_data ************")
         users = self.db.get_users(sync_data=False)
         for u in users:
             self.sync_user_data(u.id)
@@ -172,6 +173,7 @@ class Sync:
         """ This method will sync the dca contract configurations to the local db of the bot.
             We will schedule this method to run once a while but not as frequently as sync_user_data.
         """
+        logger.info("************ sync_dca_cfg ************")
         try:
             self.refresh_cfg_dca()
             cfg_dca = self.get_cfg_dca()
@@ -190,15 +192,16 @@ if __name__ == "__main__":
     terra = LocalTerra()
     s = Sync()
 
+    s.dca.query_get_config()
     # s.db.exec_sql("DROP TABLE  user")
     # s.db.exec_sql("DROP TABLE  dca_order")
 
-    s.insert_user_into_db()
+    # s.insert_user_into_db()
     # s.db.get_tables_names()
 
-    s.sync_dca_cfg()
+    # s.sync_dca_cfg()
     # s.sync_user_data(terra.wallets["test1"].key.acc_address)
-    s.sync_users_data()
+    # s.sync_users_data()
 
     # s.db.get_users()
     # s.db.get_user_tip_balance()
