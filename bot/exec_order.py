@@ -96,6 +96,9 @@ class ExecOrder(Sync):
                 str(order.user_address), order.dca_order_id.real, hops, fee_redeem)
         except:
             err_msg = traceback.format_exc()
+            # sometimes there may be an error (e.g timeout error.).
+            # Nonetheless the purchase still wen through.
+            # So this field should not be interpret in the strict sense
             success = False
 
         self.db.log_purchase_history(str(order.id), int(str(order.initial_asset_amount)),
@@ -108,25 +111,30 @@ class ExecOrder(Sync):
                                      success, err_msg)
 
     def purchase_and_sync(self, order_id: str, scheduler: Optional[BlockingScheduler] = None):
-        orders = self.db.get_dca_orders(order_id)
-        if len(orders) == 0:
-            logger.info("oder_id={} does not exist!".format(order_id))
+        try:
+            orders = self.db.get_dca_orders(order_id)
+            if len(orders) == 0:
+                logger.info("oder_id={} does not exist!".format(order_id))
 
-        assert len(
-            orders) == 1, "Got multiple order with the same id: {}".format(orders)
+            assert len(
+                orders) == 1, "Got multiple order with the same id: {}".format(orders)
 
-        order = orders[0]
-        user_address = str(order.user_address)
-        self.purchase(order)
-        self.sync_user_data(user_address)
+            order = orders[0]
+            user_address = str(order.user_address)
+            self.purchase(order)
+            self.sync_user_data(user_address)
 
-        if scheduler is not None:
-            self.reschedule(user_address, scheduler)
+            orders = self.db.get_dca_orders(
+                user_address=user_address, schedule=False)
+            if scheduler is not None:
+                self.schedule(orders, scheduler)
+        except:
+            err_msg = traceback.format_exc()
+            calling_method = "purchase_and_sync"
+            self.db.log_error(err_msg, calling_method, order_id)
 
-    def reschedule(self, user_address: str, scheduler: BlockingScheduler):
+    def schedule(self, orders: List[DcaOrder], scheduler: BlockingScheduler):
         delta = 20
-        orders = self.db.get_dca_orders(
-            user_address=user_address, schedule=[False])
         for order in orders:
             next_run_time = datetime.fromtimestamp(
                 order.interval.real + order.last_purchase.real)
@@ -136,10 +144,6 @@ class ExecOrder(Sync):
 
             scheduler.add_job(self.purchase_and_sync, 'date',
                               run_date=next_run_time,  id=order.id,  args=[order.id, scheduler])
-
-            # for job in scheduler.get_jobs():
-            #     # logger.debug(job.__slots__)
-            #     logger.debug(job.id, job.trigger, job.name)
 
             logger.debug(
                 "update order_id={}: schedule=True, next_run_time={}".format(

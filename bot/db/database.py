@@ -1,5 +1,3 @@
-from datetime import date
-
 from bot.db.table.user import User
 from bot.db.table.dca_order import DcaOrder
 from bot.db.table.whitelisted_token import WhitelistedToken
@@ -7,14 +5,16 @@ from bot.db.table.whitelisted_hop import WhitelistedHop
 from bot.db.table.whitelisted_fee_asset import WhitelistedFeeAsset
 from bot.db.table.user_tip_balance import UserTipBalance
 from bot.db.table.purchase_history import PurchaseHistory
+from bot.db.table.log_error import LogError
 from bot.db.base import session_factory, engine, Base
 from sqlalchemy import exc, inspect, text, delete
 from sqlalchemy.orm import scoped_session
 from bot.db.pd_df import DF
-from typing import Any, List
+from typing import Any, List, Optional
 from functools import lru_cache
 import json
 import logging
+
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +73,14 @@ class Database:
                              fee_redeem, success, err_msg)
         session.add(ph)
 
+    @ db_persist
+    def log_error(self, err_msg: str, calling_method: str, order_id: str = "", user_address: str = ""):
+        logger.error("calling_method={}, order_id={}, user_address={}, err_msg={}".format(
+            calling_method, order_id, user_address, err_msg))
+        session = Session()
+        le = LogError(order_id, user_address, calling_method, err_msg)
+        session.add(le)
+
     def drop_table(self, table: Any):
         """ :param table: the class which model the table in the database
         """
@@ -107,32 +115,40 @@ class Database:
         sql_formatted = text(sql)
         engine.execute(sql_formatted)
 
-    def get_users(self) -> List[User]:
-        return self.query(User)
+    def get_users(self, sync_data: Optional[bool] = None) -> List[User]:
+        filters = [] if sync_data is None else [User.sync_data == sync_data]
+        return self.query(User, filters)
 
-    def get_dca_orders(self, id: str = "",  user_address: str = "", schedule: List[bool] = [False, True]) -> List[DcaOrder]:
+    def get_dca_orders(self, id: Optional[str] = None,  user_address: Optional[str] = None, schedule: Optional[bool] = None) -> List[DcaOrder]:
         """
             :params str id: the identifier od the order which is a contatenation of
                             the user address and the dca contract order id.
                             example: id=terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v-123
         """
-        filters = [] if id == "" else [DcaOrder.id == id]
-        if user_address != "":
+        filters = [] if id == None else [DcaOrder.id == id]
+        if user_address != None:
             filters.append(DcaOrder.user_address == user_address)
-        if len(schedule) == 1:
-            filters.append(DcaOrder.schedule == schedule[0])
+        if schedule != None:
+            filters.append(DcaOrder.schedule == schedule)
 
         return self.query(DcaOrder, filters)
 
-    def get_purchase_history(self,  order_id: str = "") -> List[PurchaseHistory]:
-        filters = [] if order_id == "" else [
+    def get_purchase_history(self,  order_id: Optional[str] = None) -> List[PurchaseHistory]:
+        filters = [] if order_id != None else [
             PurchaseHistory.order_id == order_id]
         return self.query(PurchaseHistory, filters)
 
-    def get_user_tip_balance(self, user_address: str = "") -> List[UserTipBalance]:
-        filters = [] if user_address == "" else [
+    def get_user_tip_balance(self, user_address: Optional[str] = None) -> List[UserTipBalance]:
+        filters = [] if user_address == None else [
             UserTipBalance.user_address == user_address]
         return self.query(UserTipBalance, filters)
+
+    def get_log_error(self, order_id: Optional[str] = None, user_address: Optional[str] = None):
+        filters = [] if order_id == None else [
+            LogError.order_id == order_id]
+        if user_address != None:
+            filters.append(LogError.user_address == user_address)
+        return self.query(LogError, filters)
 
     def get_whitelisted_fee_asset(self) -> List[WhitelistedFeeAsset]:
         return self.query(WhitelistedFeeAsset)
@@ -220,7 +236,7 @@ if __name__ == "__main__":
     #     print(a)
     # db.exec_sql("DROP TABLE apscheduler_jobs")
 
-    db.get_dca_orders(schedule=[True])
+    db.get_dca_orders(schedule=True)
 
     # result = db.sql_query(
     #     "SELECT sql FROM sqlite_master WHERE name='apscheduler_jobs'")

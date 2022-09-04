@@ -10,6 +10,7 @@ from bot.db.table.whitelisted_hop import WhitelistedHop
 from bot.db.table.whitelisted_fee_asset import WhitelistedFeeAsset
 from bot.db.table.user_tip_balance import UserTipBalance
 from bot.db.table.purchase_history import PurchaseHistory
+from bot.db.table.log_error import LogError
 
 
 class DF():
@@ -47,6 +48,10 @@ class DF():
     def purchase_history(self):
         return self.read_sql(PurchaseHistory.__tablename__)
 
+    @property
+    def log_error(self):
+        return self.read_sql(LogError.__tablename__)
+
     @staticmethod
     def convert_to_df(list_table_object: Any) -> DataFrame:
         if len(list_table_object) == 0:
@@ -62,5 +67,7 @@ class DF():
 
 
 if __name__ == "__main__":
+    # d = DF()
     # print(d.purchase_history)
+    # print(d.log_error)
     pass

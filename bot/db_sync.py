@@ -1,4 +1,3 @@
-from multiprocessing import pool
 from bot.db.database import Database
 from bot.db.table.user_tip_balance import UserTipBalance
 from bot.db.table.user import User
@@ -13,6 +12,7 @@ from bot.util import AssetInfo, read_artifact, parse_dict_to_asset, \
 import logging
 from typing import List
 import json
+import traceback
 logger = logging.getLogger(__name__)
 
 
@@ -70,7 +70,11 @@ class Sync:
             order = parse_dict_to_order(o)
             user_order_ids.append(DcaOrder.build_id(user_address, order.id))
             dca_oder = DcaOrder(user_address, max_spread, max_hops, order)
+            # update dca_order
             self.db.insert_or_update(dca_oder)
+            # Note: there is a trigger 'reset_schedule' on the the dca_orders
+            # which will reset schedule=False and next_run_time=NULL only if
+            # new.initial_asset_amount < old.initial_asset_amount
 
         # remove orphan user oder
         self.db.delete(DcaOrder, (DcaOrder.user_address == user_address) & (  # type: ignore
@@ -140,27 +144,44 @@ class Sync:
         """ This method will sync the user oders and tip balances to the local db of the bot.
             We will schedule this method to run frequently. 
         """
-        logger.info("sync_user_data: user={}".format(user_address))
+        logger.info(
+            "********* sync_user_data: user={} *********".format(user_address))
 
-        cfg_dca = self.get_cfg_dca()
-        cfg_user = self.dca.query_get_user_config(user_address)
-        dca_oders = self.dca.query_get_user_dca_orders(user_address)
-        max_spread = cfg_dca['max_spread'] if cfg_user['max_spread'] is None else cfg_user['max_spread']
-        max_hops = cfg_dca['max_hops'] if cfg_user['max_hops'] is None else cfg_user['max_hops']
+        try:
+            cfg_dca = self.get_cfg_dca()
+            cfg_user = self.dca.query_get_user_config(user_address)
+            dca_oders = self.dca.query_get_user_dca_orders(user_address)
+            max_spread = cfg_dca['max_spread'] if cfg_user['max_spread'] is None else cfg_user['max_spread']
+            max_hops = cfg_dca['max_hops'] if cfg_user['max_hops'] is None else cfg_user['max_hops']
 
-        self._sync_user_tip_balance(user_address, cfg_user["tip_balance"])
-        self._sync_dca_oders(user_address, max_spread, max_hops, dca_oders)
+            self._sync_user_tip_balance(user_address, cfg_user["tip_balance"])
+            self._sync_dca_oders(user_address, max_spread, max_hops, dca_oders)
+
+            # update sync_data=True of the user
+            self.db.insert_or_update(User(user_address, True))
+        except:
+            err_msg = traceback.format_exc()
+            self.db.log_error(err_msg, "sync_user_data", "", user_address)
+
+    def sync_users_data(self):
+        users = self.db.get_users(sync_data=False)
+        for u in users:
+            self.sync_user_data(u.id)
 
     def sync_dca_cfg(self):
         """ This method will sync the dca contract configurations to the local db of the bot.
             We will schedule this method to run once a while but not as frequently as sync_user_data.
         """
-        self.refresh_cfg_dca()
-        cfg_dca = self.get_cfg_dca()
+        try:
+            self.refresh_cfg_dca()
+            cfg_dca = self.get_cfg_dca()
 
-        self._sync_whitelisted_fee_asset(cfg_dca["whitelisted_fee_assets"])
-        self._sync_whitelisted_token(cfg_dca["whitelisted_tokens"])
-        self.sync_whitelisted_hop()
+            self._sync_whitelisted_fee_asset(cfg_dca["whitelisted_fee_assets"])
+            self._sync_whitelisted_token(cfg_dca["whitelisted_tokens"])
+            self.sync_whitelisted_hop()
+        except:
+            err_msg = traceback.format_exc()
+            self.db.log_error(err_msg, "sync_dca_cfg")
 
 
 if __name__ == "__main__":
@@ -168,11 +189,16 @@ if __name__ == "__main__":
     # logging.getLogger('sqlalchemy.engine.Engine').setLevel(logging.DEBUG)
     terra = LocalTerra()
     s = Sync()
+
+    # s.db.exec_sql("DROP TABLE  user")
+    # s.db.exec_sql("DROP TABLE  dca_order")
+
     s.insert_user_into_db()
-    s.db.get_tables_names()
+    # s.db.get_tables_names()
 
     s.sync_dca_cfg()
-    s.sync_user_data(terra.wallets["test1"].key.acc_address)
+    # s.sync_user_data(terra.wallets["test1"].key.acc_address)
+    s.sync_users_data()
 
     # s.db.get_users()
     # s.db.get_user_tip_balance()

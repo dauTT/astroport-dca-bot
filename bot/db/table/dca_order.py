@@ -10,6 +10,7 @@ class DcaOrder(Base):
     __tablename__ = 'dca_order'
 
     id = Column(String, primary_key=True)
+    create_at = Column(DateTime, default=datetime.now())
     user_address = Column(String, ForeignKey('user.id'))
     dca_order_id = Column(Integer, nullable=False)
     token_allowance = Column(Integer)

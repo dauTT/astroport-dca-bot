@@ -34,40 +34,13 @@ def start():
     """
     logger.info("*************** BOT START ****************************")
     exec = ExecOrder()
-    oders = exec.db.get_dca_orders()
-    # exec.db.exec_sql("DROP TABLE dca_order")
+    # exec.db.exec_sql("DROP TABLE  user")
     # exec.purchase_and_sync("terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v-1")
-    # exec.purchase_and_sync(str(oders[1].id))
-    # exec.purchase_and_sync(str(oders[2].id))
-    # exec.purchase_and_sync(str(oders[3].id))
 
     if True:
         scheduler = BlockingScheduler()
-
-        delta = 20
-        for order in oders:
-
-            next_run_time = datetime.fromtimestamp(
-                order.interval.real + order.last_purchase.real)
-
-            if next_run_time < datetime.now():
-                next_run_time = datetime.now() + timedelta(seconds=delta)
-                delta += 60
-
-            scheduler.add_job(exec.purchase_and_sync, 'date',
-                              run_date=next_run_time,  id=order.id,  args=[order.id, scheduler])
-
-            # for job in scheduler.get_jobs():
-            #     logger.debug(job.__slots__)
-            #     logger.debug(job.id, job.trigger, job.name)
-
-            logger.debug(
-                "update order_id={}: schedule=True, next_run_time={}".format(
-                    order.id, next_run_time))
-            order.schedule = True
-            order.next_run_time = next_run_time
-            exec.db.insert_or_update(order)
-
+        oders = exec.db.get_dca_orders()
+        exec.schedule(oders, scheduler)
         try:
             scheduler.start()
 
