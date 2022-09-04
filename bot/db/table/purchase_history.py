@@ -15,7 +15,7 @@ class PurchaseHistory(Base):
     __tablename__ = 'purchase_history'
 
     id = Column(Integer, primary_key=True)
-    create_at = Column(DateTime, default=datetime.now())
+    create_at = Column(DateTime, default=datetime.utcnow())
     order_id = Column(String, ForeignKey("dca_order.id", ondelete="CASCADE"))
     initial_amount = Column(Integer, nullable=False)
     initial_denom = Column(String, nullable=False)

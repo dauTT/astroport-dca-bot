@@ -9,7 +9,7 @@ class User(Base):
 
     # The id column is the user account address
     id = Column(String, primary_key=True)
-    create_at = Column(DateTime, default=datetime.now())
+    create_at = Column(DateTime, default=datetime.utcnow())
     # sync_data column indicates if the process of syncing the user blockchain data
     # has already started or not. By dafault this flag is false for new user
     sync_data = Column(Boolean, default=False)

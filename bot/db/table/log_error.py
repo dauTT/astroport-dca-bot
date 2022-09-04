@@ -8,7 +8,7 @@ class LogError(Base):
     __tablename__ = 'log_error'
 
     id = Column(Integer, primary_key=True)
-    create_at = Column(DateTime, default=datetime.now())
+    create_at = Column(DateTime, default=datetime.utcnow())
     order_id = Column(String, ForeignKey("dca_order.id", ondelete="CASCADE"))
     user_address = Column(String, ForeignKey("user.id", ondelete="CASCADE"))
     calling_method = Column(String)

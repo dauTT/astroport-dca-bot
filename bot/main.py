@@ -39,7 +39,7 @@ def start():
     # exec.db.exec_sql("DROP TABLE  user")
     # exec.purchase_and_sync("terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v-1")
 
-    scheduler = BlockingScheduler()
+    scheduler = BlockingScheduler(timezone='utc')
     oders = exec.db.get_dca_orders()
     exec.schedule_next_run(oders, scheduler)
 

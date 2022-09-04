@@ -10,7 +10,7 @@ class DcaOrder(Base):
     __tablename__ = 'dca_order'
 
     id = Column(String, primary_key=True)
-    create_at = Column(DateTime, default=datetime.now())
+    create_at = Column(DateTime, default=datetime.utcnow())
     user_address = Column(String, ForeignKey('user.id'))
     dca_order_id = Column(Integer, nullable=False)
     token_allowance = Column(Integer)
@@ -28,9 +28,9 @@ class DcaOrder(Base):
     # schedule column is True (=1) when the order is scheduled to be
     # executed by the bot. It is False (=0) when the bot has not yet schedule
     # it to be executed. By default new order have value False.
-    # After every purchase this flag will be reset to False again.
+    # After every (successful/unsuccessful) purchase this flag will be reset to False again.
     schedule = Column(Boolean, nullable=False, default=False)
-    # next_run_time column store the next execution time of the order.
+    # next_run_time column stores the next execution time of the order.
     # It is set to be some future time (typically greater than last_purchase + interval)
     # if schedule=True.
     next_run_time = Column(DateTime)
@@ -68,14 +68,22 @@ class DcaOrder(Base):
 
 
 # After each successful purchase we expect the initial_asset_amount to decrese.
-# In this case the schedule flag will be reset to 0
+# In this case the schedule flag will be reset to 0.
+# Sometimes due to various reason (fees are insufficient, database lock, ..) the purchase does not go through but the
+# schedule flag is still True with an next_run_time less than the current time. Also for this situation we will
+# reset the schedule to False.
+# Entry with schedule=False will be re-schedule by the bot with an appropriate future next_run_time.
 reset_schedule = DDL("""
 CREATE TRIGGER reset_schedule AFTER UPDATE ON dca_order
 BEGIN
       UPDATE dca_order
-        SET schedule = 0, next_run_time = NULL
-      WHERE  id = new.id 
-            AND (new.initial_asset_amount < old.initial_asset_amount) ;
+        SET schedule = 0, 
+            next_run_time = NULL
+      WHERE  (
+                id = new.id AND (new.initial_asset_amount < old.initial_asset_amount)     /*successful purchase*/
+            ) OR ( 
+                schedule = 1 AND (ifnull(next_run_time, '9999-01-01') < datetime('now'))  /*unsuccessful purchase*/
+            );
 END
   """)
 event.listen(DcaOrder.__table__, 'after_create', reset_schedule)

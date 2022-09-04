@@ -151,10 +151,10 @@ class ExecOrder(Sync):
         """
         delta = 20
         for order in orders:
-            next_run_time = datetime.fromtimestamp(
+            next_run_time = datetime.utcfromtimestamp(
                 order.interval.real + order.last_purchase.real)
-            if next_run_time < datetime.now():
-                next_run_time = datetime.now() + timedelta(seconds=delta)
+            if next_run_time < datetime.utcnow():
+                next_run_time = datetime.utcnow() + timedelta(seconds=delta)
                 delta += 60
 
             scheduler.add_job(self.purchase_and_sync, 'date',
