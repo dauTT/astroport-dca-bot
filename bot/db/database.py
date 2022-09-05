@@ -5,6 +5,7 @@ from bot.db.table.whitelisted_hop import WhitelistedHop
 from bot.db.table.whitelisted_fee_asset import WhitelistedFeeAsset
 from bot.db.table.user_tip_balance import UserTipBalance
 from bot.db.table.purchase_history import PurchaseHistory
+from bot.db.view.whitelisted_hops_all import create_or_alter_view, drop_view
 from bot.db.table.log_error import LogError
 from bot.db.base import session_factory, engine, Base
 from sqlalchemy import exc, inspect, text, delete
@@ -19,10 +20,18 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-# Generate database schema
+def create_database_objects():
+    Base.metadata.create_all(bind=engine)
+    create_or_alter_view()
 
-# Base.metadata.drop_all(bind=engine)
-Base.metadata.create_all(bind=engine)
+
+def drop_database_objects():
+    drop_view()
+    Base.metadata.drop_all(bind=engine)
+
+
+# drop_database_objects()
+create_database_objects()
 Session = scoped_session(session_factory)
 
 
@@ -162,7 +171,7 @@ class Database:
         return self.query(WhitelistedHop)
 
     @ lru_cache(maxsize=10, typed=True)
-    def get_whitelisted_hops_complete(self, start_denom: str = "", target_denom: str = "", hops_len: int = 0) -> List[dict]:
+    def get_whitelisted_hops_all(self, start_denom: str = "", target_denom: str = "", hops_len: int = 0) -> List[dict]:
         """ This view provide the complete list of hops (swap operations) that the bot can chose from.
         """
         def _filter_denom(col: str,  denom: str):
@@ -173,47 +182,13 @@ class Database:
             hops_len)
 
         sql = """
-        WITH RECURSIVE
-            cte(start_denom, id , hops_len, target_denom, hops) AS (
-            SELECT
-                offer_denom AS start_denom,
-                CAST(id AS TEXT) AS id,
-                1 AS hops_len,
-                ask_denom as target_denom,
-                '<' || CAST(id AS TEXT) || '>' AS hops
-            FROM whitelisted_hop
-            UNION ALL
-            SELECT
-                ask_denom AS start_denom,
-                'inverse-' || CAST(id AS TEXT) AS id,
-                1 AS hops_len,
-                offer_denom as target_denom,
-                '<inverse-' || CAST(id AS TEXT) || '>' AS hops
-            FROM whitelisted_hop
-            UNION ALL
-            SELECT
-                start_denom,
-                CAST(wh.id AS TEXT) AS id,
-                hops_len + 1 AS hops_len,
-                wh.ask_denom,
-                cte.hops ||  CASE WHEN cte.target_denom=wh.offer_denom
-                                   THEN '<'
-                                   ELSE '<inverse-'
-                               END || CAST(wh.id AS TEXT) || '>' AS hops
-            FROM cte
-                JOIN whitelisted_hop AS wh ON (cte.target_denom=wh.offer_denom
-                or cte.target_denom = wh.ask_denom
-                ) and (cte.hops NOT LIKE '%<' || CAST(wh.id AS TEXT) || '>%'
-                                            and cte.hops NOT LIKE '%<inverse-' || CAST(wh.id AS TEXT) || '>%')
-
-        )
         SELECT
             start_denom,
             id ,
             hops_len,
             target_denom,
             hops
-        FROM cte
+        FROM whitelisted_hops_all
         WHERE
             {}
             AND {}
@@ -236,7 +211,7 @@ if __name__ == "__main__":
     #     print(a)
     # db.exec_sql("DROP TABLE apscheduler_jobs")
 
-    db.get_dca_orders(schedule=True)
+    # db.get_dca_orders(schedule=True)
 
     # result = db.sql_query(
     #     "SELECT sql FROM sqlite_master WHERE name='apscheduler_jobs'")
@@ -374,9 +349,9 @@ if __name__ == "__main__":
 
     # db.get_tables_names()
 
-    # db.get_whitelisted_hops_complete()
-    # db.get_whitelisted_hops_complete("denom1", "denom3", 1)
-    # db.get_whitelisted_hops_complete("denom1")
+    # db.get_whitelisted_hops_all()
+    # db.get_whitelisted_hops_all("denom1", "denom3", 1)
+    # db.get_whitelisted_hops_all("denom1")
 
     # WhitelistedHop.__table__.drop(engine)
     # db.drop_table(WhitelistedHop)

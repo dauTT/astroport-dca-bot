@@ -63,7 +63,7 @@ class ExecOrder(Sync):
         logger.info("build_hops")
         db = Database()
 
-        list_hops = db.get_whitelisted_hops_complete(
+        list_hops = db.get_whitelisted_hops_all(
             start_denom, target_denom, hops_len)
 
         err_msg = """There is no hops with inputs:
