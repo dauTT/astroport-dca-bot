@@ -9,9 +9,11 @@ from datetime import datetime
 class DcaOrder(Base):
     __tablename__ = 'dca_order'
 
+    # Unique identifier which is a combination of the user address and the order id stored in the blockchain.
     id = Column(String, primary_key=True)
     create_at = Column(DateTime, default=datetime.utcnow())
     user_address = Column(String, ForeignKey('user.id'))
+    # The order id stored in the blockchain. It is unique only relative to the user.
     dca_order_id = Column(Integer, nullable=False)
     token_allowance = Column(Integer)
     initial_asset_class = Column(String, nullable=False)

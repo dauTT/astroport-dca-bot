@@ -61,7 +61,7 @@ class Database:
     @db_persist
     def insert_or_update(self, table_object: Any):
         session = Session()
-        return session.merge(table_object)
+        session.merge(table_object)
 
     @ db_persist
     def delete(self, table_object, filter: Any):
@@ -143,7 +143,7 @@ class Database:
         return self.query(DcaOrder, filters)
 
     def get_purchase_history(self,  order_id: Optional[str] = None) -> List[PurchaseHistory]:
-        filters = [] if order_id != None else [
+        filters = [] if order_id == None else [
             PurchaseHistory.order_id == order_id]
         return self.query(PurchaseHistory, filters)
 
@@ -162,15 +162,15 @@ class Database:
     def get_whitelisted_fee_asset(self) -> List[WhitelistedFeeAsset]:
         return self.query(WhitelistedFeeAsset)
 
-    @ lru_cache(maxsize=10)
+    # @lru_cache(maxsize=10)
     def get_whitelisted_tokens(self) -> List[WhitelistedToken]:
         return self.query(WhitelistedToken)
 
-    @ lru_cache(maxsize=10)
+    # @lru_cache(maxsize=10)
     def get_whitelisted_hops(self) -> List[WhitelistedHop]:
         return self.query(WhitelistedHop)
 
-    @ lru_cache(maxsize=10, typed=True)
+    # @lru_cache(maxsize=10, typed=True)
     def get_whitelisted_hops_all(self, start_denom: str = "", target_denom: str = "", hops_len: int = 0) -> List[dict]:
         """ This view provide the complete list of hops (swap operations) that the bot can chose from.
         """
@@ -202,180 +202,9 @@ class Database:
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
+    # logging.basicConfig(level=logging.DEBUG)
     # logging.getLogger('sqlalchemy.engine.Engine').setLevel(logging.DEBUG)
 
-    db = Database()
-
-    # for a in db.get_tables_names():
-    #     print(a)
-    # db.exec_sql("DROP TABLE apscheduler_jobs")
-
-    # db.get_dca_orders(schedule=True)
-
-    # result = db.sql_query(
-    #     "SELECT sql FROM sqlite_master WHERE name='apscheduler_jobs'")
-    # for (i, r) in enumerate(result):
-    #     print(r)
-
- #   db.delete(DcaOrder, DcaOrder.id ==
-  #            "terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v-2")
-
-    # db.delete(DcaOrder, DcaOrder.id.in_(  # type: ignore
-    #           ["terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v-2",
-    #            "terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v-1"
-    #            ]))
-
-    # result = db.get_dca_orders()
-    # for (i, r) in enumerate(result):
-    #     print(r)
-
-    # result = db.get_whitelisted_fee_asset()
-    # for (i, r) in enumerate(result):
-    #     print(r)
-
-    # db.delete(WhitelistedFeeAsset, WhitelistedFeeAsset.denom.not_in(  # type: ignore
-    #           ["terra1q0e70vhrv063eah90mu97sazhywmeegptx642t5px7yfcrf0rrsq2nesul",
-    #            "terra1cyd63pk2wuvjkqmhlvp9884z4h89rqtn8w8xgz9m28hjd2kzj2cq076xfe"
-    #            ]))
-    # print("XXXXXXXXXXXXXXXXXXXX")
-    # result = db.get_whitelisted_fee_asset()
-    # for (i, r) in enumerate(result):
-    #     print(r)
-
-    # result = db.get_whitelisted_hops()
-    # for (i, r) in enumerate(result):
-    #     print(r)
-
-    # db.delete(WhitelistedHop, (WhitelistedHop.offer_denom.not_in(  # type: ignore
-    #           ["uluna"])) & (WhitelistedHop.offer_denom == "terra14haqsatfqxh3jgzn6u7ggnece4vhv0nt8a8ml4rg29mln9hdjfdq9xpv0p"))
-
-    # print("XXXXXXXXXXXXXXXXXXXX")
-    # result = db.get_whitelisted_hops()
-    # for (i, r) in enumerate(result):
-    #     print(r)
-
-    # u1 = User("123")
-    # u2 = User("1")
-    # db.insert_or_update(u1)
-    # db.insert_or_update(u2)
-
-    # o1: Order = {"id": 5,
-    #              "token_allowance": "10",
-    #              "initial_asset": TokenAsset("Token1", "1000"),
-    #              "target_asset": AssetInfo(AssetClass.TOKEN, "token2"),
-    #              "interval": 2,
-    #              "last_purchase": 500,
-    #              "dca_amount": "100",
-    #              }
-
-    # o2: Order = {"id": 6,
-    #              "token_allowance": "10",
-    #              "initial_asset": NativeAsset("uluna", "1000"),
-    #              "target_asset": AssetInfo(AssetClass.NATIVE_TOKEN, "token2"),
-    #              "interval": 2,
-    #              "last_purchase": 800,
-    #              "dca_amount": "1000",
-    #              }
-
-    # dcao1 = DcaOrder("1", '0.5', 2,  o1)
-    # dcao2 = DcaOrder("12", '0.6', 3, o2)
-
-    # o3: Order = {"id": 6,
-    #              "token_allowance": "10",
-    #              "initial_asset": NativeAsset("uluna", "1000"),
-    #              "target_asset": AssetInfo(AssetClass.NATIVE_TOKEN, "token2"),
-    #              "interval": 2,
-    #              "last_purchase": 1000,
-    #              "dca_amount": "1000",
-    #              }
-
-    # o4: Order = {"id": 6,
-    #              "token_allowance": "10",
-    #              "initial_asset": NativeAsset("uluna", "1000"),
-    #              "target_asset": AssetInfo(AssetClass.NATIVE_TOKEN, "token2"),
-    #              "interval": 2,
-    #              "last_purchase": 2000,
-    #              "dca_amount": "1000",
-    #              }
-
-    # dcao3 = DcaOrder("1", '0.3', 1,  o3)
-    # dcao4 = DcaOrder("12", '0.4', 2, o4)
-
-    # print("XXXXXXXXXXXXXXXXX")
-    # print(dcao1)
-    # db.insert_or_update(dcao1)
-    # db.insert_or_update(dcao2)
-    # db.insert_or_update(dcao3)
-    # db.insert_or_update(dcao4)
-
-    # db.insert_or_update(DcaOrder("12999", o4))
-
-    # query = "SELECT * FROM dca_order"
-    # # query = "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
-    # db.sql_query(query)
-
-    # query = "SELECT * FROM user"
-    # # query = "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
-    # db.sql_query(query)
-
-    # db.query(User)
-    # db.query(DcaOrder)
-    # db.get_users()
-    # db.get_dca_orders()
-
-    # ai1 = AssetInfo(AssetClass.NATIVE_TOKEN, "denom1")
-    # ai2 = AssetInfo(AssetClass.NATIVE_TOKEN, "denom2")
-    # ai3 = AssetInfo(AssetClass.TOKEN, "denom3")
-
-    # w1 = WhitelistedToken(ai1)
-    # w2 = WhitelistedToken(ai2)
-    # w3 = WhitelistedToken(ai3)
-
-    # db.insert_or_update(w1)
-    # db.insert_or_update(w2)
-    # db.insert_or_update(w3)
-
-    # db.get_whitelisted_tokens()
-
-    # astro_swap1 = AstroSwap(ai1, ai2)
-    # astro_swap2 = AstroSwap(ai2, ai3)
-    # ws1 = WhitelistedHop(astro_swap1)
-    # ws2 = WhitelistedHop(astro_swap2)
-    # db.insert_or_update(ws1)
-    # db.insert_or_update(ws2)
-
-    # db.get_whitelisted_hops()
-
+    # db = Database()
     # db.get_tables_names()
-
-    # db.get_whitelisted_hops_all()
-    # db.get_whitelisted_hops_all("denom1", "denom3", 1)
-    # db.get_whitelisted_hops_all("denom1")
-
-    # WhitelistedHop.__table__.drop(engine)
-    # db.drop_table(WhitelistedHop)
-
-    # fee1 = NativeAsset("denom1", "100")
-    # fee2 = TokenAsset("denom2", "100")
-
-    # wfee1 = WhitelistedFeeAsset(fee1)
-    # wfee2 = WhitelistedFeeAsset(fee2)
-
-    # db.insert_or_update(wfee1)
-    # db.insert_or_update(wfee2)
-
-    # db.get_tables_names()
-
-    # db.get_whitelisted_fee_asset()
-
-    # utb1 = UserTipBalance("1", fee1)
-    # utb2 = UserTipBalance("1", fee2)
-
-    # db.insert_or_update(utb1)
-    # db.insert_or_update(utb2)
-
-    # db.get_user_tip_balance("1")
-    # db.get_dca_orders()
-
-    # db.drop_table(DcaOrder)
+    pass
