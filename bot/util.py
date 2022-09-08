@@ -15,7 +15,7 @@ from bot.type import AssetClass, Asset, AssetInfo, Order, \
 logger = logging.getLogger(__name__)
 
 
-ARTIFACTS_PATH = "tests/localterra"
+ARTIFACTS_PATH = "test/integration/localterra"
 
 
 def write_artifact(data: Any, name: str):
@@ -39,7 +39,7 @@ def perform_transactions(
 ) -> BlockTxBroadcastResult:
     signed_txs = create_transactions(wallet, msgs)
     output = broadcast_transaction(terra, signed_txs)
-    logger.debug("""perform_transactions output: """, output)
+    logger.debug("perform_transactions output: {}".format(output))
     return output
 
 
@@ -64,7 +64,7 @@ def perform_transaction(
 ) -> BlockTxBroadcastResult:
     signed_tx = create_transaction(wallet, msg)
     output = broadcast_transaction(terra, signed_tx)
-    logger.debug("""perform_transactions output: """, output)
+    logger.debug("perform_transactions output: {}".format(output))
     return output
 
 
@@ -171,5 +171,14 @@ if __name__ == "__main__":
     # # print(wl_hops)
     # parse_hops_from_string(
     #     hops_string, db.get_whitelisted_tokens(), wl_hops)
+
+    import requests
+    from terra_sdk.core import Coins
+
+    res = requests.get("https://fcd.terra.dev/v1/txs/gas_prices")
+
+    print(res.json())
+
+   # LCDClient("adsdas", "CHAIN_ID",  Coins(res.json()), "AS_ADJUSTMENT")
 
     pass

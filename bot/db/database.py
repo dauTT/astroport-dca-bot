@@ -21,11 +21,15 @@ logger = logging.getLogger(__name__)
 
 
 def create_database_objects():
+    logger.info(
+        "**************** create_database_objects ********************")
     Base.metadata.create_all(bind=engine)
     create_or_alter_view()
 
 
 def drop_database_objects():
+    logger.info(
+        "**************** drop_database_objects ********************")
     drop_view()
     Base.metadata.drop_all(bind=engine)
 

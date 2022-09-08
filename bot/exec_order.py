@@ -1,4 +1,5 @@
 import traceback
+from terra_sdk.client.lcd import LCDClient, Wallet
 from bot.db.table.dca_order import DcaOrder
 from bot.db.table.purchase_history import PurchaseHistory
 from bot.type import AssetClass
@@ -181,12 +182,12 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     # logging.getLogger('sqlalchemy.engine.Engine').setLevel(logging.DEBUG)
 
-    # db = Database()
+    from terra_sdk.client.localterra import LocalTerra
+    from bot.util import read_artifact
 
-    # res = db.get_dca_orders("terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v-1")
-    # order = res[0]
-    # for r in res:
-    #     print(r)
+    terra = LocalTerra()
+    network = read_artifact('localterra')
+    s = Sync()
 
     e = ExecOrder()
 

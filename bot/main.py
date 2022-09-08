@@ -1,11 +1,10 @@
+import os
 import logging
 from logging.handlers import RotatingFileHandler
-from datetime import datetime
 from apscheduler.schedulers.blocking import BlockingScheduler
-from datetime import datetime, timedelta
 from bot.exec_order import ExecOrder
-from bot.db_sync import Sync
-from bot.config import LOG_PATH_FILE, SYNC_USER_FREQ, SYNC_CFG_FREQ, \
+from bot.db_sync import insert_users_into_db
+from bot.settings import LOG_PATH_FILE, SYNC_USER_FREQ, SYNC_CFG_FREQ, \
     SCHEDULE_ORDER_FREQ
 
 
@@ -34,21 +33,27 @@ def start():
         When the bot start it will reschedule all the orders in the DB, regardless
         of whether they have been already schedule in the past or not.
     """
+    DCA_BOT = os.environ['DCA_BOT']
+    assert DCA_BOT in [
+        'dev', 'prod', 'test'], "Please configure the environment variable DCA_BOT "
+
+    logger.info(
+        "*************** ENVIRONMENT: {} **********************".format(os.environ['DCA_BOT']))
     logger.info("*************** BOT START ****************************")
-    exec = ExecOrder()
-    # exec.db.exec_sql("DROP TABLE  user")
-    # exec.purchase_and_sync("terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v-1")
+    bot = ExecOrder()
+    # bot.db.exec_sql("DROP TABLE  user")
+    # bot.purchase_and_sync("terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v-1")
 
     scheduler = BlockingScheduler(timezone='utc')
-    oders = exec.db.get_dca_orders()
-    exec.schedule_next_run(oders, scheduler)
+    oders = bot.db.get_dca_orders()
+    bot.schedule_next_run(oders, scheduler)
 
     # schedule recurrening job
-    scheduler.add_job(exec.sync_users_data, 'interval', id="sync_users_data",
+    scheduler.add_job(bot.sync_users_data, 'interval', id="sync_users_data",
                       minutes=SYNC_USER_FREQ)
-    scheduler.add_job(exec.sync_dca_cfg, 'interval', id="sync_dca_cfg",
+    scheduler.add_job(bot.sync_dca_cfg, 'interval', id="sync_dca_cfg",
                       minutes=SYNC_CFG_FREQ)
-    scheduler.add_job(exec.schedule_orders, 'interval',
+    scheduler.add_job(bot.schedule_orders, 'interval',
                       minutes=SCHEDULE_ORDER_FREQ, id="schedule_orders",  args=[scheduler])
 
     try:
@@ -58,8 +63,17 @@ def start():
 
 
 if __name__ == "__main__":
-    # logging.getLogger('sqlalchemy.engine.Engine').setLevel(logging.INFO)
-    # logging.getLogger('bot.db.database').setLevel(logging.INFO)
+    logging.getLogger('sqlalchemy.engine.Engine').setLevel(logging.DEBUG)
+    logging.getLogger('bot.db.database').setLevel(logging.DEBUG)
     logging.getLogger('apscheduler').setLevel(logging.DEBUG)
 
+    # load initial dca users into the database
+    insert_users_into_db()
+
+    # Once the bot start to process the user orders, we can still include new users
+    # by adding them to the database in this way:
+    # """
+    # s = Sync()
+    # s.insert_user_into_db(new_user_address)
+    # """"
     start()

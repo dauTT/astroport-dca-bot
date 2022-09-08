@@ -1,30 +1,37 @@
-from bot.db.database import Database
+from terra_sdk.core import Coins
+from terra_sdk.client.localterra import LocalTerra
+from terra_sdk.client.lcd import LCDClient
+from bot.util import AssetInfo, parse_dict_to_asset, \
+    parse_dict_to_asset_info, parse_dict_to_order, AstroSwap
+from typing import List
+import json
+import traceback
+from terra_sdk.key.mnemonic import MnemonicKey
 from bot.db.table.user_tip_balance import UserTipBalance
 from bot.db.table.user import User
 from bot.db.table.dca_order import DcaOrder
 from bot.db.table.whitelisted_token import WhitelistedToken
 from bot.db.table.whitelisted_hop import WhitelistedHop
 from bot.db.table.whitelisted_fee_asset import WhitelistedFeeAsset
+from bot.db.database import Database
+from bot.settings import LCD_URL, CHAIN_ID, GAS_PRICE,\
+    GAS_ADJUSTMENT, MNEMONIC, DCA_CONTRACT_ADDR
 from bot.dca import DCA
-from terra_sdk.client.localterra import LocalTerra
-from bot.util import AssetInfo, read_artifact, parse_dict_to_asset, \
-    parse_dict_to_asset_info, parse_dict_to_order, AstroSwap
 import logging
-from typing import List
-import json
-import traceback
+
 logger = logging.getLogger(__name__)
 
 
 class Sync:
 
     def __init__(self):
-        self.cfg_dca = {}  # configuration of the dca contract
-        self.network = read_artifact("localterra")
-        self.terra = LocalTerra()
-        self.dca = DCA(
-            self.terra, self.terra.wallets["test1"], self.network["dcaAddress"])
+        terra = LCDClient(LCD_URL, CHAIN_ID,   Coins(  # type: ignore
+            GAS_PRICE), GAS_ADJUSTMENT)  # type: ignore
+        mk = MnemonicKey(mnemonic=MNEMONIC)
+
+        self.dca = DCA(terra, terra.wallet(mk), DCA_CONTRACT_ADDR)
         self.db = Database()
+        self.cfg_dca = {}  # configuration of the dca contract
 
     def get_cfg_dca(self):
         if self.cfg_dca == {}:
@@ -38,14 +45,9 @@ class Sync:
         cfg_dca = self.dca.query_get_config()
         self.set_cfg_dca(cfg_dca)
 
-    def insert_user_into_db(self):
-        u1 = User(self.terra.wallets["test1"].key.acc_address)
-        u2 = User(self.terra.wallets["test2"].key.acc_address)
-        u3 = User(self.terra.wallets["test3"].key.acc_address)
-
-        self.db.insert_or_update(u1)
-        self.db.insert_or_update(u2)
-        self.db.insert_or_update(u3)
+    def insert_user_into_db(self, user_address: str):
+        u = User(user_address)
+        self.db.insert_or_update(u)
 
     def _sync_user_tip_balance(self, user_address: str,  user_tip_balances: List[dict]):
         logger.debug("_sync_user_tip_balance")
@@ -117,7 +119,7 @@ class Sync:
         def is_whitelisted_asset(asset_info: AssetInfo) -> bool:
             return whitelisted_tokens_denom.__contains__(asset_info.denom)
 
-        p = self.dca.get_astro_pools(self.network["factoryAddress"])
+        p = self.dca.get_astro_pools()
         logger.debug(
             "dca.get_astro_pools -> result: {}".format(json.dumps(p, indent=4)))
 
@@ -142,7 +144,7 @@ class Sync:
 
     def sync_user_data(self, user_address):
         """ This method will sync the user oders and tip balances to the local db of the bot.
-            We will schedule this method to run frequently. 
+            We will schedule this method to run frequently.
         """
         logger.info(
             "****** sync_user_data: user={} ******".format(user_address))
@@ -186,31 +188,43 @@ class Sync:
             self.db.log_error(err_msg, "sync_dca_cfg")
 
 
+def insert_users_into_db():
+    import os
+    DCA_BOT = os.environ['DCA_BOT']
+
+    s = Sync()
+    if DCA_BOT == "dev":
+        terra = LocalTerra()
+
+        u1 = terra.wallets["test1"].key.acc_address
+        u2 = terra.wallets["test2"].key.acc_address
+        u3 = terra.wallets["test3"].key.acc_address
+
+        s.insert_user_into_db(u1)
+        s.insert_user_into_db(u2)
+        s.insert_user_into_db(u3)
+
+    elif DCA_BOT == "prod":
+        # insert some dca user address here: ...
+        # s.insert_user_into_db(...)
+        pass
+    elif DCA_BOT == "test":
+        # insert some dca user address here: ...
+        # s.insert_user_into_db(...)
+        pass
+    else:
+        assert False, "Expected DCA_BOT in ['test', 'dev', 'prod']. Got DCA_BOT={}. ".format(
+            DCA_BOT)
+
+
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     # logging.getLogger('sqlalchemy.engine.Engine').setLevel(logging.DEBUG)
-    terra = LocalTerra()
+
+    insert_users_into_db()
     s = Sync()
 
-    s.dca.query_get_config()
+    # s.dca.query_get_config()
     # s.db.exec_sql("DROP TABLE  user")
-    # s.db.exec_sql("DROP TABLE  dca_order")
-
-    # s.insert_user_into_db()
-    # s.db.get_tables_names()
-
     # s.sync_dca_cfg()
-    # s.sync_user_data(terra.wallets["test1"].key.acc_address)
     # s.sync_users_data()
-
-    # s.db.get_users()
-    # s.db.get_user_tip_balance()
-    # s.db.get_whitelisted_fee_asset()
-    # s.db.get_whitelisted_tokens()
-   # s.db.get_dca_orders()
-    # s.db.get_whitelisted_hops()
-    # s.db.get_whitelisted_hops_complete()
-    # s.db.get_user_tip_balance()
-
-    # print(s.dca.query_get_user_dca_orders(
-    #     terra.wallets["test1"].key.acc_address))
