@@ -26,7 +26,7 @@ fi
 
 
 # set the image to run
-VERSION=v1.1.0
+VERSION=v1.2.0
 IMAGE=dautt/astroport:$VERSION
 CONTAINER_NAME=astroport_$VERSION
 
@@ -41,10 +41,19 @@ if [[ "$1" = "stop" ]]; then
 fi
 
 if [[ "$1" = "rm" ]]; then
+    echo "******** REMOVE CONTAINER: $CONTAINER_NAME **********"
     docker rm -f $CONTAINER_NAME
 fi
 
 if [[ "$1" = "run" ]]; then
+
+
+    if [ "$(docker ps -qa -f name=$CONTAINER_NAME)" ]; then
+        # cleanup
+        echo "******** REMOVE CONTAINER: $CONTAINER_NAME **********"
+        docker rm -f $CONTAINER_NAME
+    fi
+    echo "******** RUN CONTAINER: $CONTAINER_NAME **********"
     docker run -d \
         --name $CONTAINER_NAME \
         -p 1317:1317 \
@@ -55,10 +64,9 @@ if [[ "$1" = "run" ]]; then
         -v $PWD/config:/root/.terra/config \
         $IMAGE ;
 
-    echo $CONTAINER_NAME
-
-    echo "copy  localterra_source.json to  locaterra.json"
-    cp localterra_source.json localterra.json  
+    
+    # echo "copy  localterra_source.json to  locaterra.json"
+    # cp localterra_source.json localterra.json  
 
 fi
 
@@ -76,7 +84,6 @@ if [[ "$1" = "run_print" ]]; then
 
     echo $CONTAINER_NAME
 
-    echo ""
 fi
 
 if [[ "$1" = "enter" ]]; then

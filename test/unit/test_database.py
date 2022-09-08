@@ -7,27 +7,51 @@ from sqlalchemy.orm.session import make_transient
 
 class TestDatabase(unittest.TestCase):
 
-    def setUp(self):
+    @staticmethod
+    def setUpClass():
         os.environ['DCA_BOT'] = 'test'
         from bot.settings import DB_URL
-        from bot.db.database import Database
+        from bot.settings.test import DB_URL as DB_URL_TEST
+        from bot.db.database import create_database_objects, Database
         from bot.db.table.user import User
-        assert DB_URL == "sqlite://", "invalid DB_URL={}".format(DB_URL)
 
-        self.db = Database()
+        assert DB_URL == DB_URL_TEST, "invalid DB_URL={}".format(
+            DB_URL)
+
+        create_database_objects()
+
+        db = Database()
 
         u1 = User("user1")
         u2 = User("user2")
-        self.db.insert_or_update(u1)
-        self.db.insert_or_update(u2)
+        db.insert_or_update(u1)
+        db.insert_or_update(u2)
 
-    def test_get_users(self):
+    def setUp(self):
+        os.environ['DCA_BOT'] = 'test'
+        from bot.settings import DB_URL
+        from bot.settings.test import DB_URL as DB_URL_TEST
+        from bot.db.database import Database
+        assert DB_URL == DB_URL_TEST, "invalid DB_URL={}".format(
+            DB_URL)
+
+        self.db = Database()
+
+    @classmethod
+    def tearDownClass(cls):
+        os.environ['DCA_BOT'] = 'test'
+        from bot.settings import DB_URL
+        from bot.db.database import drop_database_objects
+
+        drop_database_objects()
+
+    def test0_get_users(self):
         users = self.db.get_users()
         self.assertEqual(len(users), 2)
         self.assertEqual(users[0].id, "user1")
         self.assertEqual(users[0].sync_data, False)
 
-    def test_insert_or_update(self):
+    def test1_insert_or_update(self):
         from bot.db.table.dca_order import DcaOrder
         orders = self.db.get_dca_orders()
         self.assertEqual(0, len(orders))
@@ -93,7 +117,7 @@ class TestDatabase(unittest.TestCase):
         orders = self.db.get_dca_orders()
         self.assertEqual(0, len(orders))
 
-    def test_log_purchase_history(self):
+    def test2_log_purchase_history(self):
         self.assertEqual(0, len(self.db.get_purchase_history()))
 
         self.db.log_purchase_history("user1-5", 10,
@@ -103,7 +127,7 @@ class TestDatabase(unittest.TestCase):
 
         self.assertEqual(1, len(self.db.get_purchase_history()))
 
-    def test_log_error(self):
+    def test3_log_error(self):
         self.assertEqual(0, len(self.db.get_log_error()))
 
         self.db.log_error("err_msg", "calling_method",
@@ -111,16 +135,16 @@ class TestDatabase(unittest.TestCase):
 
         self.assertEqual(1, len(self.db.get_log_error()))
 
-    def test_sql_query(self):
+    def test4_sql_query(self):
         orders = self.db.get_dca_orders()
         output = self.db.sql_query("select * from dca_order")
         self.assertEqual(len(orders), len(output))
 
-    def test_get_tables_names(self):
+    def test5_get_tables_names(self):
         names = self.db.get_tables_names()
         self.assertGreater(len(names), 1)
 
-    def test_get_user_tip_balance(self):
+    def test6_get_user_tip_balance(self):
         from bot.db.table.user_tip_balance import UserTipBalance
         tips = self.db.get_user_tip_balance()
         self.assertEqual(0, len(tips))
@@ -132,7 +156,7 @@ class TestDatabase(unittest.TestCase):
         tips = self.db.get_user_tip_balance()
         self.assertEqual(1, len(tips))
 
-    def test_whitelisted_methods(self):
+    def test7_whitelisted_methods(self):
         from bot.db.table.whitelisted_token import WhitelistedToken
         from bot.db.table.whitelisted_hop import WhitelistedHop
         from bot.db.table.whitelisted_fee_asset import WhitelistedFeeAsset
@@ -199,4 +223,5 @@ class TestDatabase(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    unittest.main()
+    # unittest.main()
+    pass
