@@ -1,4 +1,5 @@
 venv/*
 .ipynb_checkpoints
-tests/localterra/config/write-file-atomic*
+test/integration/localterra/config/write-file-atomic*
 *__pycache__*
+logs/*
