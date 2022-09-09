@@ -327,19 +327,22 @@ class TestDca(unittest.TestCase):
 
 if __name__ == '__main__':
     testNames = [
-        "test_dca.TestDca.test_query_get_config",
-        "test_dca.TestDca.test_query_get_user_config",
-        "test_dca.TestDca.test_query_get_user_dca_orders",
-        "test_dca.TestDca.test_get_astro_pools",
-        "test_dca.TestDca.test_upload_contract",
-        "test_dca.TestDca.test_instantiate",
-        "test_dca.TestDca.test_execute_update_user_config",
-        "test_dca.TestDca.test_execute_add_bot_tip",
-        "test_dca.TestDca.test_execute_create_oder",
-        "test_dca.TestDca.test_execute_perform_dca_purchase",
+        "test_query_get_config",
+        "test_query_get_user_config",
+        "test_query_get_user_dca_orders",
+        "test_get_astro_pools",
+        "test_upload_contract",
+        "test_instantiate",
+        "test_execute_update_user_config",
+        "test_execute_add_bot_tip",
+        "test_execute_create_oder",
+        "test_execute_perform_dca_purchase",
 
     ]
+
+    testFullNames = ["test_dca.TestDca.{}".format(t) for t in testNames]
+
     loader = unittest.TestLoader()
-    suite = loader.loadTestsFromNames(testNames)
+    suite = loader.loadTestsFromNames(testFullNames)
     runner = unittest.TextTestRunner(verbosity=2)
     runner.run(suite)

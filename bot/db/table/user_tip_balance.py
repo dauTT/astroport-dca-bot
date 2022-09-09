@@ -12,7 +12,7 @@ class UserTipBalance(Base):
         "user.id", ondelete="CASCADE"))
     denom = Column(String, primary_key=True)
     asset_class = Column(String, nullable=False)
-    amount = Column(String, nullable=False)
+    amount = Column(Integer, nullable=False)
 
     def __init__(self, user_address: str, asset: Asset):
         self.id = UserTipBalance.build_id(user_address, asset.get_denom())
@@ -20,7 +20,7 @@ class UserTipBalance(Base):
         self.denom = asset.get_denom()
         self.asset_class = AssetClass.NATIVE_TOKEN.value if asset.is_native(
         ) else AssetClass.TOKEN.value
-        self.amount = asset.get_asset()["amount"]
+        self.amount = int(asset.get_asset()["amount"])
 
     @staticmethod
     def build_id(user_address: str, denom: str):

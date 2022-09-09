@@ -8,6 +8,7 @@ from bot.db.table.purchase_history import PurchaseHistory
 from bot.db.view.whitelisted_hops_all import create_or_alter_view, drop_view
 from bot.db.table.log_error import LogError
 from bot.db.base import session_factory, engine, Base
+from bot.settings import DB_URL
 from sqlalchemy import exc, inspect, text, delete
 from sqlalchemy.orm import scoped_session
 from bot.db.pd_df import DF
@@ -22,14 +23,14 @@ logger = logging.getLogger(__name__)
 
 def create_database_objects():
     logger.info(
-        "**************** create_database_objects ********************")
+        "**************** create_database_objects: {}********************".format(DB_URL))
     Base.metadata.create_all(bind=engine)
     create_or_alter_view()
 
 
 def drop_database_objects():
     logger.info(
-        "**************** drop_database_objects ********************")
+        "**************** drop_database_objects: {}********************".format(DB_URL))
     drop_view()
     Base.metadata.drop_all(bind=engine)
 

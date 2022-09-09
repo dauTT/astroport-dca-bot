@@ -33,12 +33,12 @@ class ExecOrder(Sync):
         fee_redeem: List[Asset] = []
         hop_fee_map = {}
         for asset in whitelisted_fee_assets:
-            hop_fee_map[asset.denom] = int(str(asset.amount))
+            hop_fee_map[asset.denom] = asset.amount.real
         assert len(user_tip_balances) > 0, "user_tip_balance is empty!"
 
         h = hops_len
         for tip in user_tip_balances:
-            amount: int = int(str(tip.amount))
+            amount: int = tip.amount.real
             tip_fee = hop_fee_map[tip.denom]
             q = amount // tip_fee
             if q >= h:
