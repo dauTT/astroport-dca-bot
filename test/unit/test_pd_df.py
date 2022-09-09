@@ -82,35 +82,54 @@ class TestDF(unittest.TestCase):
         self.df = DF()
         self.db = Database()
 
-    def test0_user(self):
+    def test_user(self):
         self.assertEqual(1, len(self.df.user))
 
-    def test1_dca_order(self):
+    def test_dca_order(self):
         self.assertEqual(1, len(self.df.dca_order))
 
-    def test2_log_error(self):
+    def test_log_error(self):
         self.assertEqual(1, len(self.df.log_error))
 
-    def test3_purchase_history(self):
+    def test_purchase_history(self):
         self.assertEqual(1, len(self.df.purchase_history))
 
-    def test4_user_tip_balance(self):
+    def test_user_tip_balance(self):
         self.assertEqual(1, len(self.df.user_tip_balance))
 
-    def test5_whitelisted_fee_asset(self):
+    def test_whitelisted_fee_asset(self):
         self.assertEqual(1, len(self.df.whitelisted_fee_asset))
 
-    def test6_whitelisted_token(self):
+    def test_whitelisted_token(self):
         self.assertEqual(1, len(self.df.whitelisted_token))
 
-    def test7_whitelisted_hop(self):
+    def test_whitelisted_hop(self):
         self.assertEqual(1, len(self.df.whitelisted_hop))
 
-    def test8_convert_to_df(self):
+    def test_convert_to_df(self):
         df_users = self.df.convert_to_df(self.db.get_users())
         self.assertEqual(1, len(df_users))
 
 
+def get_test_names():
+    testNames = [
+        "test_user",
+        "test_dca_order",
+        "test_log_error",
+        "test_purchase_history",
+        "test_user_tip_balance",
+        "test_whitelisted_fee_asset",
+        "test_whitelisted_token",
+        "test_whitelisted_hop",
+        "test_convert_to_df",
+    ]
+    testFullNames = ["test_pd_df.TestDF.{}".format(t) for t in testNames]
+    return testFullNames
+
+
 if __name__ == '__main__':
-    # unittest.main()
-    pass
+    testFullNames = get_test_names()
+    loader = unittest.TestLoader()
+    suite = loader.loadTestsFromNames(testFullNames)
+    runner = unittest.TextTestRunner(verbosity=2)
+    runner.run(suite)

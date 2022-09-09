@@ -45,13 +45,13 @@ class TestDatabase(unittest.TestCase):
 
         drop_database_objects()
 
-    def test0_get_users(self):
+    def test_get_users(self):
         users = self.db.get_users()
         self.assertEqual(len(users), 2)
         self.assertEqual(users[0].id, "user1")
         self.assertEqual(users[0].sync_data, False)
 
-    def test1_insert_or_update(self):
+    def test_insert_or_update(self):
         from bot.db.table.dca_order import DcaOrder
         orders = self.db.get_dca_orders()
         self.assertEqual(0, len(orders))
@@ -117,7 +117,7 @@ class TestDatabase(unittest.TestCase):
         orders = self.db.get_dca_orders()
         self.assertEqual(0, len(orders))
 
-    def test2_log_purchase_history(self):
+    def test_log_purchase_history(self):
         self.assertEqual(0, len(self.db.get_purchase_history()))
 
         self.db.log_purchase_history("user1-5", 10,
@@ -127,7 +127,7 @@ class TestDatabase(unittest.TestCase):
 
         self.assertEqual(1, len(self.db.get_purchase_history()))
 
-    def test3_log_error(self):
+    def test_log_error(self):
         self.assertEqual(0, len(self.db.get_log_error()))
 
         self.db.log_error("err_msg", "calling_method",
@@ -135,16 +135,16 @@ class TestDatabase(unittest.TestCase):
 
         self.assertEqual(1, len(self.db.get_log_error()))
 
-    def test4_sql_query(self):
+    def test_sql_query(self):
         orders = self.db.get_dca_orders()
         output = self.db.sql_query("select * from dca_order")
         self.assertEqual(len(orders), len(output))
 
-    def test5_get_tables_names(self):
+    def test_get_tables_names(self):
         names = self.db.get_tables_names()
         self.assertGreater(len(names), 1)
 
-    def test6_get_user_tip_balance(self):
+    def test_get_user_tip_balance(self):
         from bot.db.table.user_tip_balance import UserTipBalance
         tips = self.db.get_user_tip_balance()
         self.assertEqual(0, len(tips))
@@ -156,7 +156,7 @@ class TestDatabase(unittest.TestCase):
         tips = self.db.get_user_tip_balance()
         self.assertEqual(1, len(tips))
 
-    def test7_whitelisted_methods(self):
+    def test_whitelisted_methods(self):
         from bot.db.table.whitelisted_token import WhitelistedToken
         from bot.db.table.whitelisted_hop import WhitelistedHop
         from bot.db.table.whitelisted_fee_asset import WhitelistedFeeAsset
@@ -222,6 +222,24 @@ class TestDatabase(unittest.TestCase):
         self.assertEqual(1, len(fees))
 
 
+def get_test_names():
+    testNames = [
+        "test_insert_or_update",
+        "test_log_purchase_history",
+        "test_log_error",
+        "test_sql_query",
+        "test_get_tables_names",
+        "test_get_user_tip_balance",
+        "test_whitelisted_methods"
+    ]
+    testFullNames = [
+        "test_database.TestDatabase.{}".format(t) for t in testNames]
+    return testFullNames
+
+
 if __name__ == '__main__':
-    # unittest.main()
-    pass
+    testFullNames = get_test_names()
+    loader = unittest.TestLoader()
+    suite = loader.loadTestsFromNames(testFullNames)
+    runner = unittest.TextTestRunner(verbosity=2)
+    runner.run(suite)
