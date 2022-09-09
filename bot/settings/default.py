@@ -1,4 +1,6 @@
 
+DB_URL = ""
+
 DCA_CONTRACT_ADDR = ""
 
 
