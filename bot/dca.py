@@ -11,6 +11,8 @@ from terra_sdk.client.lcd import LCDClient, Wallet
 from typing import List, Any, Optional
 from bot.util import perform_transaction, Asset, AssetInfo, \
     perform_transactions, AstroSwap
+from bot.type import AstroSwap, SimulateSwapOperation
+
 import json
 
 import logging
@@ -25,6 +27,7 @@ class DCA:
         self.wallet = wallet  # self.terra.wallet(mk)
         self.dca_addr = dca_addr
         self.factory_addr = None
+        self.router_addr = None
 
     def set_dca_addr(self, dca_addr: str):
         self.dca_addr = dca_addr
@@ -39,6 +42,13 @@ class DCA:
             self.factory_addr = self.query_get_config()["factory_addr"]
         return self.factory_addr
 
+    def get_router_addr(self) -> str:
+        """ It is safe to cache the router address because once the dca contract is deployed this address can't be modified.
+        """
+        if self.router_addr == None:
+            self.router_addr = self.query_get_config()["router_addr"]
+        return self.router_addr
+
     def _log_debug_output(self, output: dict):
         logger.debug(""" result :
         {} """.format(json.dumps(output, indent=2)))
@@ -49,6 +59,12 @@ class DCA:
         })
         self._log_debug_output(output)
         return output
+
+    def simulate_swap_operations(self, swo: SimulateSwapOperation) -> int:
+        output = self.terra.wasm.contract_query(self.get_router_addr(),
+                                                swo.to_dict())
+
+        return output["amount"]
 
     def query_get_user_dca_orders(self, user_address: str) -> List[dict]:
         logger.debug("query_get_user_dca_orders")

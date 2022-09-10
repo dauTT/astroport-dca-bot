@@ -3,7 +3,7 @@ import logging
 from logging.handlers import RotatingFileHandler
 from apscheduler.schedulers.blocking import BlockingScheduler
 from bot.exec_order import ExecOrder
-from bot.db_sync import insert_users_into_db
+from bot.db_sync import initialized_db
 from bot.settings import LOG_PATH_FILE, SYNC_USER_FREQ, SYNC_CFG_FREQ, \
     SCHEDULE_ORDER_FREQ
 
@@ -26,6 +26,11 @@ def init_log(logging_level):
 
 
 logger = init_log(logging.INFO)
+
+
+def clean_db():
+    from bot.db.database import drop_database_objects
+    drop_database_objects()
 
 
 def start():
@@ -63,15 +68,18 @@ def start():
 
 
 if __name__ == "__main__":
-    logging.getLogger('sqlalchemy.engine.Engine').setLevel(logging.DEBUG)
-    logging.getLogger('bot.db.database').setLevel(logging.DEBUG)
-    logging.getLogger('apscheduler').setLevel(logging.DEBUG)
+    # logging.getLogger('sqlalchemy.engine.Engine').setLevel(logging.DEBUG)
+    # logging.getLogger('bot.db.database').setLevel(logging.DEBUG)
+    # logging.getLogger('apscheduler').setLevel(logging.DEBUG)
 
-    # load initial dca users into the database
-    insert_users_into_db()
+    # clean_db()
 
-    # Once the bot start to process the user orders, we can still include new users
-    # by adding them to the database in this way:
+    # load initial dca users into the database and
+    # fill price table
+    initialized_db()
+
+    # Once the bot start to process the initial user orders, we can still include new users
+    # by adding them to the database directly via sql or in this way:
     # """
     # s = Sync()
     # s.insert_user_into_db(new_user_address)

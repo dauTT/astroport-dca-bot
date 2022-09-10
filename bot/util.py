@@ -1,5 +1,6 @@
 import json
 import os
+import asyncio
 from terra_sdk.client.lcd.api.tx import CreateTxOptions
 from terra_sdk.core.msg import Msg
 from terra_sdk.core.tx import Tx
@@ -11,6 +12,7 @@ from bot.db.table.whitelisted_hop import WhitelistedHop
 from bot.db.table.whitelisted_token import WhitelistedToken
 from bot.type import AssetClass, Asset, AssetInfo, Order, \
     NativeAsset, TokenAsset, AstroSwap
+
 
 logger = logging.getLogger(__name__)
 
@@ -132,9 +134,8 @@ def parse_hops_from_string(hops: str,  whithelisted_tokens: List[WhitelistedToke
 
     for h in l:
         hop = h.replace("<", "").replace(">", "")
-        hop_id = int(hop)
-        if hop.__contains__("inverse-"):
-            hop_id = int(hop.replace("inverse-", ""))
+        hop_id = int(hop) if not (hop.__contains__("inverse-")
+                                  ) else int(hop.replace("inverse-", ""))
 
         assert hop_id in map_hops, "Missing hop_id={} in the whitelisted_hop={}".format(
             hop_id, whithelisted_hops)
@@ -157,27 +158,40 @@ def parse_hops_from_string(hops: str,  whithelisted_tokens: List[WhitelistedToke
     return output
 
 
+def get_price(token_ids: str):
+    """
+        :param str token_ids: comma seprated list of coingecko token id
+
+        references: 
+            - https://www.coingecko.com/api/documentations/v3#
+            - https://api.coingecko.com/api/v3/coins/list
+    """
+    import requests
+    url = "https://api.coingecko.com/api/v3/simple/price?ids={tokenId}&vs_currencies=usd".format(
+        tokenId=token_ids)
+    resp = requests.get(url)
+    return resp.json()
+
+
+def get_list_coingecko_token_id():
+    import requests
+    url = "https://api.coingecko.com/api/v3/coins/list"
+    resp = requests.get(url)
+    return resp.json()
+
+
 if __name__ == "__main__":
     # logging.basicConfig(level=logging.INFO)
     # logging.getLogger('sqlalchemy.engine.Engine').setLevel(logging.INFO)
-    # from bot.db.database import Database
 
-    # hops_string = "<2><3>"
+    # import requests
+    # from terra_sdk.core import Coins
 
-    # db = Database()
-    # db.get_whitelisted_tokens()
+    # res = requests.get("https://fcd.terra.dev/v1/txs/gas_prices")
 
-    # wl_hops = db.get_whitelisted_hops()
-    # # print(wl_hops)
-    # parse_hops_from_string(
-    #     hops_string, db.get_whitelisted_tokens(), wl_hops)
+    # print(res.json())
 
-    import requests
-    from terra_sdk.core import Coins
-
-    res = requests.get("https://fcd.terra.dev/v1/txs/gas_prices")
-
-    print(res.json())
+    # get_price()
 
    # LCDClient("adsdas", "CHAIN_ID",  Coins(res.json()), "AS_ADJUSTMENT")
 

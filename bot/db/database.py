@@ -5,6 +5,7 @@ from bot.db.table.whitelisted_hop import WhitelistedHop
 from bot.db.table.whitelisted_fee_asset import WhitelistedFeeAsset
 from bot.db.table.user_tip_balance import UserTipBalance
 from bot.db.table.purchase_history import PurchaseHistory
+from bot.db.table.token_price import TokenPrice
 from bot.db.view.whitelisted_hops_all import create_or_alter_view, drop_view
 from bot.db.table.log_error import LogError
 from bot.db.base import session_factory, engine, Base
@@ -146,6 +147,10 @@ class Database:
             filters.append(DcaOrder.schedule == schedule)
 
         return self.query(DcaOrder, filters)
+
+    def get_token_price(self, denom: Optional[str] = None) -> List[TokenPrice]:
+        filters = [] if denom == None else [TokenPrice.denom == denom]
+        return self.query(TokenPrice, filters)
 
     def get_purchase_history(self,  order_id: Optional[str] = None) -> List[PurchaseHistory]:
         filters = [] if order_id == None else [

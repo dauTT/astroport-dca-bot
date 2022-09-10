@@ -82,12 +82,12 @@ class Order():
 
 class SimulateSwapOperation():
 
-    def __init__(self, offer_amount: str, operations: List[AstroSwap]):
+    def __init__(self, offer_amount: int, operations: List[AstroSwap]):
         self.offer_amount = offer_amount
         self.operations = operations
 
     def to_dict(self):
-        return {"simulate_swap_operations": {"offer_amount": self.offer_amount,
+        return {"simulate_swap_operations": {"offer_amount": str(self.offer_amount),
                                              "operations": [a.to_dict() for a in self.operations]
                                              }
                 }

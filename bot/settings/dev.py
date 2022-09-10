@@ -28,3 +28,39 @@ SYNC_CFG_FREQ = 1
 # a purchase. We label an order exceptional if it is a new order or if for some strange reason we could not
 # schedule the next execution immediately after a purchase.
 SCHEDULE_ORDER_FREQ = 2
+
+
+TOKEN_INFO = {
+    "uluna": {
+        "coingecko": {
+            "id": "terra-luna-2",
+            "symbol": "luna",
+            "name": "Terra"
+        },
+        "conversion": 1000000  # 1000000uluna=1luna
+    },
+
+    "terra1cyd63pk2wuvjkqmhlvp9884z4h89rqtn8w8xgz9m28hjd2kzj2cq076xfe": {  # tokenAAA
+        "coingecko": {
+            "id": "axlusdc",
+            "symbol": "axlusdc",
+            "name": "axlUSDC"
+        },
+        "conversion": 1000000
+    },
+    "terra14haqsatfqxh3jgzn6u7ggnece4vhv0nt8a8ml4rg29mln9hdjfdq9xpv0p": {"coingecko": {  # tokenBBB
+        "id": "cosmos",
+        "symbol": "atom",
+        "name": "Cosmos Hub"
+    },
+        "conversion": 1000000
+    },
+    "terra1q0e70vhrv063eah90mu97sazhywmeegptx642t5px7yfcrf0rrsq2nesul": {
+        "coingecko": {  # tokenCCC
+            "id": "astroport-fi",
+            "symbol": "astro",
+            "name": "Astroport.fi"
+        },
+        "conversion": 1000000
+    },
+}

@@ -501,6 +501,30 @@ class TestDbSync(unittest.TestCase):
 
         self.assertEqual(actual_hops, expected_hops)
 
+    def test_fill_token_price_table(self):
+        list_tp = self.sync.db.get_token_price()
+        self.assertEqual(len(list_tp), 0)
+
+        self.sync.fill_token_price_table()
+
+        list_tp = self.sync.db.get_token_price()
+        self.assertEqual(len(list_tp), 4)
+
+    def test_sync_token_price(self):
+        self.sync.fill_token_price_table()
+        list_tp = self.sync.db.get_token_price()
+        self.assertEqual(len(list_tp), 4)
+
+        for tp in list_tp:
+            self.assertIsNone(tp.price)
+
+        self.sync.sync_token_price()
+
+        list_tp = self.sync.db.get_token_price()
+        self.assertEqual(len(list_tp), 4)
+        for tp in list_tp:
+            self.assertIsNotNone(tp.price)
+
 
 def get_test_names():
     testNames = [
@@ -513,6 +537,8 @@ def get_test_names():
         "test_sync_whitelisted_hop",
         "test_sync_user_data",
         "test_sync_dca_cfg",
+        "test_fill_token_price_table",
+        "test_sync_token_price"
 
     ]
     testFullNames = [

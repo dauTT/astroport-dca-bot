@@ -1,16 +1,16 @@
 import traceback
-from terra_sdk.client.lcd import LCDClient, Wallet
 from bot.db.table.dca_order import DcaOrder
 from bot.db.table.purchase_history import PurchaseHistory
-from bot.type import AssetClass
+from bot.type import AssetClass, TokenAsset, SimulateSwapOperation
 from bot.util import AstroSwap, NativeAsset,\
     Asset, parse_hops_from_string
 from typing import List, Optional
-from bot.db.database import Database
+from bot.db.table.user_tip_balance import UserTipBalance
 from bot.db_sync import Sync
 from apscheduler.schedulers.blocking import BlockingScheduler
 from datetime import datetime, timedelta
 import logging
+
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +26,19 @@ class ExecOrder(Sync):
             For each hop the bot can take a fee amount as configured in whitelisted_fee_assets.
             If user_tip_balance is not sufficient to pay the fees for the bot, this method will throw an error.
         """
+
+        def _get_asset(tip: UserTipBalance) -> Asset:
+            fee_asset: Asset
+            if str(tip.asset_class) == AssetClass.NATIVE_TOKEN.value:
+                logger.debug("*** native ***")
+                fee_asset = NativeAsset(str(tip.denom), str(fee))
+                logger.debug(fee_asset.get_asset())
+            else:
+                logger.debug("*** token ***", )
+                fee_asset = TokenAsset(str(tip.denom), str(fee))
+                logger.debug(fee_asset.get_asset())
+            return fee_asset
+
         logger.info("build_fee_redeem")
         user_tip_balances = self.db.get_user_tip_balance(user_address)
         whitelisted_fee_assets = self.db.get_whitelisted_fee_asset()
@@ -35,6 +48,7 @@ class ExecOrder(Sync):
         for asset in whitelisted_fee_assets:
             hop_fee_map[asset.denom] = asset.amount.real
         assert len(user_tip_balances) > 0, "user_tip_balance is empty!"
+        logger.debug("hop_fee_map={}".format(hop_fee_map))
 
         h = hops_len
         for tip in user_tip_balances:
@@ -42,15 +56,13 @@ class ExecOrder(Sync):
             tip_fee = hop_fee_map[tip.denom]
             q = amount // tip_fee
             if q >= h:
-                if str(tip.asset_class) == AssetClass.NATIVE_TOKEN.value:
-                    fee = tip_fee * h
-                    fee_redeem.append(NativeAsset(
-                        str(tip.denom), str(fee)))
-                    h = 0
-                    break
+                fee = tip_fee * h
+                fee_redeem.append(_get_asset(tip))
+                h = 0
+                break
             else:
                 fee = tip_fee * q
-                fee_redeem.append(NativeAsset(str(tip.denom), str(fee)))
+                fee_redeem.append(_get_asset(tip))
                 h = h - q
         err_msg = """tip_balance={} is not sufficient to pays for fees
                     based on hops_len={} and fees structure = {}""".format(user_tip_balances,
@@ -60,23 +72,98 @@ class ExecOrder(Sync):
         logger.debug("fee_redeem: {}".format(fee_redeem))
         return fee_redeem
 
-    def build_hops(self, start_denom: str, target_denom: str, hops_len: int) -> List[AstroSwap]:
-        logger.info("build_hops")
-        db = Database()
+    def build_fee_reedem_usd_map(self, user_address: str,  list_hops_string: List[str], prices: dict) -> dict:
+        fee_redem_usd_map = {}
+        hops_len = 0
+        for h in list_hops_string:
+            try:
+                hops_len = len(h.split("><"))
+                fee_reedem = self.build_fee_redeem(user_address, hops_len)
+                fee_redem_usd_map[h] = self.convert_assets_to_usd_amount(
+                    fee_reedem, prices)
+            except:
+                erro_msg = traceback.format_exc()
+                logger.error("Unable to build fee_redeem for user_address={} with hop_len={}. err_msg={}".format(
+                    user_address, hops_len, erro_msg
+                ))
 
-        list_hops = db.get_whitelisted_hops_all(
+        assert fee_redem_usd_map != {
+        }, "Unable to generate any fee_redem for the candidate list_hops={}".format(list_hops_string)
+
+        return fee_redem_usd_map
+
+    def convert_assets_to_usd_amount(self, assets: List[Asset], prices: dict):
+        """
+        :param dict prices: key= denom, value=price per one unit of denom
+        """
+        amount_usd_total = 0
+        for a in assets:
+            amount = int(a.get_asset()["amount"])
+            amount_usd = amount * prices[a.get_denom()]
+            amount_usd_total += amount_usd
+        return amount_usd_total
+
+    def get_token_price_map(self) -> dict:
+        prices = {}
+        for tp in self.db.get_token_price():
+            if tp.price != None:
+                price_per_one_unit = tp.price / tp.conversion.real
+                prices[tp.denom] = price_per_one_unit
+        return prices
+
+    def build_hops(self, user_address: str,  offer_amount: int, start_denom: str,
+                   target_denom: str, hops_len: int) -> List[AstroSwap]:
+        logger.info("build_hops")
+
+        list_hops = self.db.get_whitelisted_hops_all(
             start_denom, target_denom, hops_len)
 
-        err_msg = """There is no hops with inputs:
+        err_msg = """There are no hops with inputs:
                     start_denom={},
                     target_denom={},
                     hops_len={}""".format(start_denom, target_denom, hops_len)
         assert len(list_hops) > 0, err_msg
 
-        # todo: Best execution = $ value of amount of out tokens I get - fees I pay for the bot that executed the dca
-        # Current strategy: pick the first whitelisted hops
-        hops_string = list_hops[0]["hops"]
-        return parse_hops_from_string(hops_string, db.get_whitelisted_tokens(), db.get_whitelisted_hops())
+        list_hops_string = [h["hops"] for h in list_hops]
+        prices = self.get_token_price_map()
+        logger.debug("prices={}".format(prices))
+
+        fee_redem_usd_map = self.build_fee_reedem_usd_map(
+            user_address, list_hops_string, prices)
+
+        best_hops_string = self.choose_best_execution_hop(target_denom,
+                                                          offer_amount, fee_redem_usd_map, prices)
+
+        return parse_hops_from_string(best_hops_string, self.db.get_whitelisted_tokens(), self.db.get_whitelisted_hops())
+
+    def choose_best_execution_hop(self,  target_denom: str,
+                                  offer_amount: int, fee_redem_usd_map: dict, prices: dict) -> str:
+        logger.debug("****** choose_best_execution_hop ******")
+        list_hops_string = list(fee_redem_usd_map.keys())
+        if len(list_hops_string) == 1:
+            return list_hops_string[0]
+        logger.debug("list_hops_string={}".format(list_hops_string))
+
+        best_hop = list_hops_string[0]
+        best_execution = 0
+        for hop in list_hops_string:
+            try:
+                hop_fees_usd_amount = fee_redem_usd_map[hop]
+                swap_operations = parse_hops_from_string(
+                    hop, self.db.get_whitelisted_tokens(), self.db.get_whitelisted_hops())
+                swo = SimulateSwapOperation(offer_amount, swap_operations)
+                target_token_receive = self.dca.simulate_swap_operations(swo)
+                target_usd_amount = target_token_receive * prices[target_denom]
+                hop_execution = target_usd_amount - hop_fees_usd_amount
+                if hop_execution > best_execution:
+                    best_execution = hop_execution
+                    best_hop = hop
+            except:
+                erro_msg = traceback.format_exc()
+                logger.error("Unable to calculate current hop={} execution amount. err_msg={}".format(
+                    hop, erro_msg
+                ))
+        return best_hop
 
     def purchase(self, order: DcaOrder):
         logger.info("""**************** Purchase Order *******************
@@ -87,9 +174,12 @@ class ExecOrder(Sync):
         hops = []
         fee_redeem = []
         try:
-            hops = self.build_hops(str(order.initial_asset_denom),
+            hops = self.build_hops(str(order.user_address),
+                                   order.initial_asset_amount.real,
+                                   str(order.initial_asset_denom),
                                    str(order.target_asset_denom),
-                                   order.max_hops.real)
+                                   order.max_hops.real,
+                                   )
 
             fee_redeem = self.build_fee_redeem(
                 str(order.user_address),  len(hops))
@@ -99,8 +189,8 @@ class ExecOrder(Sync):
         except:
             err_msg = traceback.format_exc()
             # sometimes there may be an error (e.g timeout error.).
-            # Nonetheless the purchase still wen through.
-            # So this field should not be interpret in the strict sense
+            # Nonetheless the purchase still went through.
+            # So success field should not be interpret in the strict sense
             success = False
 
         self.db.log_purchase_history(str(order.id), int(str(order.initial_asset_amount)),
@@ -129,15 +219,15 @@ class ExecOrder(Sync):
             orders = self.db.get_dca_orders(
                 user_address=user_address, schedule=False)
             if len(orders) == 0:
-                logger.info("""Can't schedule next run time for order_id={1}. 
-                The order is either fully completed and removed from the dca_order table or 
+                logger.info("""Can't schedule next run time for order_id={1}.
+                The order is either fully completed and removed from the dca_order table or
                 the trigger 'reset_schedule' didn't work because something went wrong.
-                Check this query to investigate further: 
+                Check this query to investigate further:
 
-                select * 
-                from {0} 
-                where 
-                    success = 0 
+                select *
+                from {0}
+                where
+                    success = 0
                     and order_id = '{1}'
                 """.format(PurchaseHistory.__tablename__, order.id))
             if scheduler is not None and len(orders) > 0:
@@ -186,6 +276,7 @@ if __name__ == "__main__":
     from bot.util import read_artifact
 
     terra = LocalTerra()
+
     network = read_artifact('localterra')
     s = Sync()
 

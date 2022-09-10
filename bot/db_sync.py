@@ -2,7 +2,8 @@ from terra_sdk.core import Coins
 from terra_sdk.client.localterra import LocalTerra
 from terra_sdk.client.lcd import LCDClient
 from bot.util import AssetInfo, parse_dict_to_asset, \
-    parse_dict_to_asset_info, parse_dict_to_order, AstroSwap
+    parse_dict_to_asset_info, parse_dict_to_order, AstroSwap,\
+    get_price
 from typing import List
 import json
 import traceback
@@ -13,9 +14,11 @@ from bot.db.table.dca_order import DcaOrder
 from bot.db.table.whitelisted_token import WhitelistedToken
 from bot.db.table.whitelisted_hop import WhitelistedHop
 from bot.db.table.whitelisted_fee_asset import WhitelistedFeeAsset
-from bot.db.database import Database
+from bot.db.table.token_price import TokenPrice
+from bot.db.database import Database, create_database_objects, \
+    drop_database_objects
 from bot.settings import LCD_URL, CHAIN_ID, GAS_PRICE,\
-    GAS_ADJUSTMENT, MNEMONIC, DCA_CONTRACT_ADDR
+    GAS_ADJUSTMENT, MNEMONIC, DCA_CONTRACT_ADDR, TOKEN_INFO
 from bot.dca import DCA
 import logging
 
@@ -48,6 +51,30 @@ class Sync:
     def insert_user_into_db(self, user_address: str):
         u = User(user_address)
         self.db.insert_or_update(u)
+
+    def fill_token_price_table(self):
+        for denom in TOKEN_INFO.keys():
+            coingecko = TOKEN_INFO[denom]["coingecko"]
+            tp = TokenPrice(
+                denom, coingecko["id"], coingecko["symbol"], TOKEN_INFO[denom]["conversion"])
+            self.db.insert_or_update(tp)
+
+    def sync_token_price(self):
+        list_token_price = self.db.get_token_price()
+        if not (list_token_price):
+            self.fill_token_price_table()
+            list_token_price = self.db.get_token_price()
+
+        coingecko_ids = ",".join([str(t.coingecko_id)
+                                  for t in list_token_price])
+        prices = get_price(coingecko_ids)
+
+        logger.debug("prices={}".format(prices))
+        for tp in list_token_price:
+            price = prices.get(str(tp.coingecko_id), None)
+            if price != None:
+                tp.price = price["usd"]
+                self.db.insert_or_update(tp)
 
     def _sync_user_tip_balance(self, user_address: str,  user_tip_balances: List[dict]):
         logger.debug("_sync_user_tip_balance")
@@ -188,11 +215,14 @@ class Sync:
             self.db.log_error(err_msg, "sync_dca_cfg")
 
 
-def insert_users_into_db():
+def initialized_db():
     import os
     DCA_BOT = os.environ['DCA_BOT']
 
+    create_database_objects()
     s = Sync()
+
+    # insert some initial user into db
     if DCA_BOT == "dev":
         terra = LocalTerra()
 
@@ -216,13 +246,22 @@ def insert_users_into_db():
         assert False, "Expected DCA_BOT in ['test', 'dev', 'prod']. Got DCA_BOT={}. ".format(
             DCA_BOT)
 
+    s.fill_token_price_table()
+
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
-    # logging.getLogger('sqlalchemy.engine.Engine').setLevel(logging.DEBUG)
+    logging.getLogger('sqlalchemy.engine.Engine').setLevel(logging.DEBUG)
+    # from bot.db.database import create_database_objects, drop_database_objects
+    # drop_database_objects()
+    # create_database_objects()
 
-    insert_users_into_db()
+    # insert_users_into_db()
     s = Sync()
+    # s.fill_token_price_table()
+    s.sync_token_price()
+
+    # print("XXXXXXXXXXXX:", s.db.get_tables_names())
 
     # s.dca.query_get_config()
     # s.db.exec_sql("DROP TABLE  user")
