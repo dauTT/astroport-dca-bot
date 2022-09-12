@@ -1,8 +1,5 @@
-from importlib.metadata import metadata
 from bot.db.base import engine
 from sqlalchemy.sql import text
-from sqlalchemy import MetaData, Table
-from sqlalchemy_views import CreateView, DropView
 
 
 drop_view_if_exist = text("DROP VIEW IF EXISTS whitelisted_hops_all")

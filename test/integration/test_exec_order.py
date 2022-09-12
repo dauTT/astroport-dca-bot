@@ -13,14 +13,14 @@ class TestExecOrder(unittest.TestCase):
         os.environ['DCA_BOT'] = 'dev'
         from bot.settings import DB_URL
         from bot.settings.dev import DB_URL as DB_URL_DEV
-        from bot.db_sync import initialized_db, Sync
+        from bot.db_sync import initialize_db, Sync
         from bot.db.database import drop_database_objects
 
         assert DB_URL == DB_URL_DEV, "invalid DB_URL={}".format(
             DB_URL)
 
         drop_database_objects()
-        initialized_db()
+        initialize_db()
 
         s = Sync()
         s.sync_dca_cfg()

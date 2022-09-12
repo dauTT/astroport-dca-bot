@@ -3,9 +3,10 @@ import logging
 from logging.handlers import RotatingFileHandler
 from apscheduler.schedulers.blocking import BlockingScheduler
 from bot.exec_order import ExecOrder
-from bot.db_sync import initialized_db
+from bot.db_sync import initialize_db
 from bot.settings import LOG_PATH_FILE, SYNC_USER_FREQ, SYNC_CFG_FREQ, \
     SCHEDULE_ORDER_FREQ, SYNC_TOKEN_PRICE_FREQ
+from pathlib import Path
 
 
 def init_log(logging_level):
@@ -14,6 +15,10 @@ def init_log(logging_level):
     logger = logging.getLogger()
     logger.setLevel(logging_level)
     formatter = logging.Formatter(format)
+
+    # create a folder if it does not exist
+    FOLDER_PATH = os.path.dirname(LOG_PATH_FILE)
+    Path(FOLDER_PATH).mkdir(parents=True, exist_ok=True)
 
     file_handler = RotatingFileHandler(LOG_PATH_FILE,
                                        maxBytes=1024 * 1024 * 10,
@@ -76,7 +81,7 @@ if __name__ == "__main__":
 
     # load initial dca users into the database and
     # fill price table
-    initialized_db()
+    initialize_db()
 
     # Once the bot start to process the initial user orders, we can still include new users
     # by adding them to the database directly via sql or in this way:

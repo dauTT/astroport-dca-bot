@@ -1,13 +1,13 @@
 SHELL=/bin/bash
 
 PWD=$(shell pwd)
+
+
 clean-pyc: ## remove Python file artifacts
 	find . -name '*.pyc' -exec rm -f {} +
 	find . -name '*.pyo' -exec rm -f {} +
 	find . -name '*~' -exec rm -f {} +
 	find . -name '__pycache__' -exec rm -fr {} +
-
-
 
 install_python:
 	sudo apt install python3.9-venv
@@ -61,3 +61,8 @@ local_terra_rm:
 #example: make local_terra cmd=help
 local_terra :
 	cd "$(PWD)/test/integration/localterra"; local_terra_image.sh $(cmd)
+
+start:
+	python bot/main.py
+	
+	

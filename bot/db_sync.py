@@ -76,6 +76,10 @@ class Sync:
                 tp.price = price["usd"]
                 self.db.insert_or_update(tp)
 
+    def initialize_token_price_table(self):
+        self.fill_token_price_table()
+        self.sync_token_price()
+
     def _sync_user_tip_balance(self, user_address: str,  user_tip_balances: List[dict]):
         logger.debug("_sync_user_tip_balance")
         user_tip_ids = []
@@ -215,7 +219,7 @@ class Sync:
             self.db.log_error(err_msg, "sync_dca_cfg")
 
 
-def initialized_db():
+def initialize_db():
     import os
     DCA_BOT = os.environ['DCA_BOT']
 
@@ -246,7 +250,7 @@ def initialized_db():
         assert False, "Expected DCA_BOT in ['test', 'dev', 'prod']. Got DCA_BOT={}. ".format(
             DCA_BOT)
 
-    s.fill_token_price_table()
+    s.initialize_token_price_table()
 
 
 if __name__ == "__main__":
@@ -255,6 +259,6 @@ if __name__ == "__main__":
     # from bot.db.database import create_database_objects, drop_database_objects
     # drop_database_objects()
     # create_database_objects()
-    # initialized_db()
+    # initialize_db()
     # s = Sync()
     pass
