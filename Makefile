@@ -1,8 +1,6 @@
 SHELL=/bin/bash
 
 PWD=$(shell pwd)
-
-
 clean-pyc: ## remove Python file artifacts
 	find . -name '*.pyc' -exec rm -f {} +
 	find . -name '*.pyo' -exec rm -f {} +
@@ -10,9 +8,22 @@ clean-pyc: ## remove Python file artifacts
 	find . -name '__pycache__' -exec rm -fr {} +
 
 
+
+install_python:
+	sudo apt install python3.9-venv
+
+venv:
+	python3.9 -m venv "$(PWD)/venv/"
+
+install_requirements:
+	( source  "$(PWD)/venv/bin/activate" ;\
+	  pip install -r requirements.txt;\
+	)
+	 
+install: install_python venv install_requirements
+
 test-unit:
 	python3.9 test/unit/test_all.py
-
 
 test-int-exec-order: local_terra_run test-exec-order  local_terra_rm
 test-int-dca: local_terra_run test-dca  local_terra_rm
