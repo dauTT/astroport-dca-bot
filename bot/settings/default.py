@@ -4,9 +4,26 @@ DB_URL = ""
 DCA_CONTRACT_ADDR = ""
 
 
-SYNC_USER_FREQ = 12 * 60  # minutes
-SYNC_CFG_FREQ = 24 * 60  # minutes
-SCHEDULE_ORDER_FREQ = 4 * 60  # minutes
+# SYNC_USER_FREQ is responsible for refreshing following tables every x minutes:
+# - user
+# - user_tip_balance
+# - dca_orders
+SYNC_USER_FREQ = 12 * 60
+
+# SYNC_CFG_FREQ is responsible for refreshing following tables every x minutes:
+# - whitelisted_fee_asset
+# - whitelisted_hop
+# - whitelisted_token
+SYNC_CFG_FREQ = 24 * 60
+
+# SCHEDULE_ORDER_FREQ is responsible for scheduling 'exceptional' orders every x minutes:
+# Normally s which have been already process in the past will be schedule immediatelly after
+# a purchase. We label an order exceptional if it is a new order or if for some strange reason we could not
+# schedule the next execution immediately after a purchase.
+SCHEDULE_ORDER_FREQ = 4 * 60
+
+# SYNC_TOKEN_PRICE_FREQ is responsible for refreshing the token price data from coingecko every x minutes
+SYNC_TOKEN_PRICE_FREQ = 2
 
 LOG_PATH_FILE = "./logs/bot.log"
 

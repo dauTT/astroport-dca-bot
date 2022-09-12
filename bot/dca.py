@@ -291,11 +291,5 @@ if __name__ == "__main__":
     # network = read_artifact("localterra")
     # terra = LocalTerra()
     # test_wallet_1 = terra.wallets["test1"]
-    # print(test_wallet_1.key.acc_address)
-    # contract = network["factoryAddress"]
-    # result = terra.wasm.contract_query(contract, {"config": {}})
-    # print(result)
-
-    # dca_contract = network["dcaAddress"]
-    # dca = DCA(terra, test_wallet_1, dca_contract)
+    # dca = DCA(terra, test_wallet_1, network["dcaAddress"])
     pass

@@ -250,20 +250,11 @@ def initialized_db():
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
-    logging.getLogger('sqlalchemy.engine.Engine').setLevel(logging.DEBUG)
+    # logging.basicConfig(level=logging.DEBUG)
+    # .getLogger('sqlalchemy.engine.Engine').setLevel(logging.DEBUG)
     # from bot.db.database import create_database_objects, drop_database_objects
     # drop_database_objects()
     # create_database_objects()
-
-    # insert_users_into_db()
-    s = Sync()
-    # s.fill_token_price_table()
-    s.sync_token_price()
-
-    # print("XXXXXXXXXXXX:", s.db.get_tables_names())
-
-    # s.dca.query_get_config()
-    # s.db.exec_sql("DROP TABLE  user")
-    # s.sync_dca_cfg()
-    # s.sync_users_data()
+    # initialized_db()
+    # s = Sync()
+    pass

@@ -37,7 +37,7 @@ def drop_database_objects():
 
 
 # drop_database_objects()
-create_database_objects()
+# create_database_objects()
 Session = scoped_session(session_factory)
 
 
@@ -69,13 +69,13 @@ class Database:
         session = Session()
         session.merge(table_object)
 
-    @ db_persist
+    @db_persist
     def delete(self, table_object, filter: Any):
         session = Session()
         stmt = delete(table_object).where(filter)
         session.execute(stmt)
 
-    @ db_persist
+    @db_persist
     def log_purchase_history(self, order_id: str, initial_amount: int,
                              initial_denom: str, target_denom: str,
                              dca_amount: int, hops: str, fee_redeem: str,
@@ -88,7 +88,7 @@ class Database:
                              fee_redeem, success, err_msg)
         session.add(ph)
 
-    @ db_persist
+    @db_persist
     def log_error(self, err_msg: str, calling_method: str, order_id: str = "", user_address: str = ""):
         logger.error("calling_method={}, order_id={}, user_address={}, err_msg={}".format(
             calling_method, order_id, user_address, err_msg))
@@ -214,7 +214,6 @@ class Database:
 if __name__ == "__main__":
     # logging.basicConfig(level=logging.DEBUG)
     # logging.getLogger('sqlalchemy.engine.Engine').setLevel(logging.DEBUG)
-
     # db = Database()
     # db.get_tables_names()
     pass

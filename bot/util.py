@@ -1,6 +1,5 @@
 import json
 import os
-import asyncio
 from terra_sdk.client.lcd.api.tx import CreateTxOptions
 from terra_sdk.core.msg import Msg
 from terra_sdk.core.tx import Tx
@@ -182,17 +181,4 @@ def get_list_coingecko_token_id():
 
 if __name__ == "__main__":
     # logging.basicConfig(level=logging.INFO)
-    # logging.getLogger('sqlalchemy.engine.Engine').setLevel(logging.INFO)
-
-    # import requests
-    # from terra_sdk.core import Coins
-
-    # res = requests.get("https://fcd.terra.dev/v1/txs/gas_prices")
-
-    # print(res.json())
-
-    # get_price()
-
-   # LCDClient("adsdas", "CHAIN_ID",  Coins(res.json()), "AS_ADJUSTMENT")
-
     pass

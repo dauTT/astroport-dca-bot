@@ -5,7 +5,7 @@ from apscheduler.schedulers.blocking import BlockingScheduler
 from bot.exec_order import ExecOrder
 from bot.db_sync import initialized_db
 from bot.settings import LOG_PATH_FILE, SYNC_USER_FREQ, SYNC_CFG_FREQ, \
-    SCHEDULE_ORDER_FREQ
+    SCHEDULE_ORDER_FREQ, SYNC_TOKEN_PRICE_FREQ
 
 
 def init_log(logging_level):
@@ -46,8 +46,6 @@ def start():
         "*************** ENVIRONMENT: {} **********************".format(os.environ['DCA_BOT']))
     logger.info("*************** BOT START ****************************")
     bot = ExecOrder()
-    # bot.db.exec_sql("DROP TABLE  user")
-    # bot.purchase_and_sync("terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v-1")
 
     scheduler = BlockingScheduler(timezone='utc')
     oders = bot.db.get_dca_orders()
@@ -60,6 +58,8 @@ def start():
                       minutes=SYNC_CFG_FREQ)
     scheduler.add_job(bot.schedule_orders, 'interval',
                       minutes=SCHEDULE_ORDER_FREQ, id="schedule_orders",  args=[scheduler])
+    scheduler.add_job(bot.sync_token_price, 'interval',
+                      minutes=SYNC_TOKEN_PRICE_FREQ, id="sync_token_price")
 
     try:
         scheduler.start()

@@ -2,7 +2,7 @@ DB_URL = 'sqlite:///test/integration/dca.db'
 
 DCA_CONTRACT_ADDR = "terra1zrkla3nzvenamj4vp95yxtw6cfxymxkgwqk79z997hqaeq8yg8wsdw47e2"
 
-# test1 account
+# MNEMONIC defined the bot's wallet. In this case the bot will use the test1 account in localterra.
 MNEMONIC = "notice oak worry limit wrap speak medal online prefer cluster roof addict wrist behave treat actual wasp year salad speed social layer crew genius"
 # LCDClient configuration
 LCD_URL = "http://localhost:1317"
@@ -28,6 +28,9 @@ SYNC_CFG_FREQ = 1
 # a purchase. We label an order exceptional if it is a new order or if for some strange reason we could not
 # schedule the next execution immediately after a purchase.
 SCHEDULE_ORDER_FREQ = 2
+
+# REFRESH_TOKEN_PRICE_FREQ is responsible for refreshing the token price data from coingecko every x minutes
+SYNC_TOKEN_PRICE_FREQ = 2
 
 
 TOKEN_INFO = {

@@ -3,6 +3,7 @@ DB_URL = 'sqlite:///bot/db/dca.db'
 
 DCA_CONTRACT_ADDR = ""
 
+# MNEMONIC defined the bot's wallet.
 MNEMONIC = ""
 
 LCD_URL = "https://phoenix-lcd.terra.dev"

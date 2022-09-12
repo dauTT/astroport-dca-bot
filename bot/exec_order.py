@@ -39,7 +39,7 @@ class ExecOrder(Sync):
                 logger.debug(fee_asset.get_asset())
             return fee_asset
 
-        logger.info("build_fee_redeem")
+        logger.debug("build_fee_redeem")
         user_tip_balances = self.db.get_user_tip_balance(user_address)
         whitelisted_fee_assets = self.db.get_whitelisted_fee_asset()
 
@@ -73,6 +73,7 @@ class ExecOrder(Sync):
         return fee_redeem
 
     def build_fee_reedem_usd_map(self, user_address: str,  list_hops_string: List[str], prices: dict) -> dict:
+        logger.info("build_fee_reedem_usd_map")
         fee_redem_usd_map = {}
         hops_len = 0
         for h in list_hops_string:
@@ -240,6 +241,7 @@ class ExecOrder(Sync):
     def schedule_next_run(self, orders: List[DcaOrder], scheduler: BlockingScheduler):
         """ Schedule for each order a one off job to be executed at a future date.
         """
+
         delta = 20
         for order in orders:
             next_run_time = datetime.utcfromtimestamp(
@@ -271,44 +273,5 @@ class ExecOrder(Sync):
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     # logging.getLogger('sqlalchemy.engine.Engine').setLevel(logging.DEBUG)
-
-    from terra_sdk.client.localterra import LocalTerra
-    from bot.util import read_artifact
-
-    terra = LocalTerra()
-
-    network = read_artifact('localterra')
-    s = Sync()
-
-    e = ExecOrder()
-
-    e.dca.query_get_user_dca_orders(
-        "terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v")
-
-    # res = db.get_dca_orders("terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v-1")
-    # order = res[0]
-
-    # db.get_user_tip_balance()
-    # purchase_and_sync(order)
-
-    # db.get_dca_orders("terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v-1")
-    # order = res[0]
-    # for r in res:
-    #     print(r)
-    # id = 1  # --> native target asset
-    # id = 3  # --> token target asset
-    # execute_purchase(user_address, id)
-
-    # hops = build_hops("denom1", "denom2", 2)
-    # print(hops)
-
-    # hops = build_hops("denom1", "denom3", 2)
-    # print(hops)
-
-    # hops = build_hops(
-    #    "terra1cyd63pk2wuvjkqmhlvp9884z4h89rqtn8w8xgz9m28hjd2kzj2cq076xfe", "uluna", 3)
-    # print(len(hops))
-
-    # hops = build_hops("terra1cyd63pk2wuvjkqmhlvp9884z4h89rqtn8w8xgz9m28hjd2kzj2cq076xfe",
-    #                  "terra1q0e70vhrv063eah90mu97sazhywmeegptx642t5px7yfcrf0rrsq2nesul", 3)
-    # print(hops)
+    # eo = ExecOrder()
+    pass
