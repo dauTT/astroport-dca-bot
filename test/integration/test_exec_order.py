@@ -1,48 +1,209 @@
+from multiprocessing.connection import wait
 import unittest
 import os
-from bot.type import AssetClass, NativeAsset, TokenAsset, AssetInfo, \
-    Asset, AstroSwap
 from bot.util import read_artifact
-from test.integration.setup import DCA_BINARY_PATH, INSTANTIATE_MSG
 from terra_sdk.client.localterra import LocalTerra
-from terra_sdk.core import AccAddress, Coins
-from terra_sdk.exceptions import LCDResponseError
-from typing import List
+from apscheduler.schedulers.background import BackgroundScheduler
 
 
 class TestExecOrder(unittest.TestCase):
+
+    @staticmethod
+    def setUpClass():
+        os.environ['DCA_BOT'] = 'dev'
+        from bot.settings import DB_URL
+        from bot.settings.dev import DB_URL as DB_URL_DEV
+        from bot.db_sync import initialized_db, Sync
+        from bot.db.database import drop_database_objects
+
+        assert DB_URL == DB_URL_DEV, "invalid DB_URL={}".format(
+            DB_URL)
+
+        drop_database_objects()
+        initialized_db()
+
+        s = Sync()
+        s.sync_dca_cfg()
+        s.sync_users_data()
+        s.sync_token_price()
 
     def setUp(self):
         os.environ['DCA_BOT'] = 'dev'
         from bot.settings import DB_URL
         from bot.settings.dev import DB_URL as DB_URL_DEV
-        from bot.dca import DCA
+        from bot.exec_order import ExecOrder
+
         assert DB_URL == DB_URL_DEV, "invalid DB_URL={}".format(
             DB_URL)
 
         self.network = read_artifact("localterra")
         self.dca_contract = self.network["dcaAddress"]
-        self.terra = LocalTerra()
+        terra = LocalTerra()
+        self.test1_user_addr = terra.wallets["test1"].key.acc_address
+        self.test2_user_addr = terra.wallets["test2"].key.acc_address
+        self.test3_user_addr = terra.wallets["test3"].key.acc_address
 
-        # To make the tests as much independent as possible we use 3 users.
-        # However the execute tests can be run only once because they modified the
-        # blockchain state. They will fail if we run them a second time without resetting the
-        # state of of the blockchain.
-        self.test1_wallet = self.terra.wallets["test1"]
-        self.test2_wallet = self.terra.wallets["test2"]
-        self.test3_wallet = self.terra.wallets["test3"]
-        self.dca1 = DCA(self.terra, self.test1_wallet, self.dca_contract)
-        self.dca2 = DCA(self.terra, self.test2_wallet, self.dca_contract)
-        self.dca3 = DCA(self.terra, self.test3_wallet, self.dca_contract)
+        self.eo = ExecOrder()
 
-    # @unittest.skip("skip test_query_get_config")
-    def test_query_get_config(self):
-        pass
+        # the bot is using test1_account to interact with the dca contract.
+        # the bot account is defined in the dev setting
+        self.assertEqual(self.eo.dca.wallet.key.acc_address,
+                         self.test1_user_addr)
+
+    def test_purchase(self):
+        # test setup:
+        # test1 user has two orders
+        orders = self.eo.db.get_dca_orders(user_address=self.test1_user_addr)
+        self.assertEqual(len(orders), 2)
+        self.assertEqual(
+            orders[0].id, "terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v-1")
+
+        # order_0 before the purchase
+        self.assertEqual(
+            orders[0].token_allowance, 2000000)
+        self.assertEqual(
+            orders[0].initial_asset_amount, 1000000)
+        self.assertEqual(
+            orders[0].last_purchase, 0)
+        self.assertEqual(
+            orders[0].dca_amount, 10000)
+
+        history = self.eo.db.get_purchase_history(
+            "terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v-1")
+        self.assertEqual(len(history), 0)
+
+        # test1 user is executing its own order_0
+        self.eo.purchase(orders[0])
+
+        # sync data
+        self.eo.sync_user_data(self.test1_user_addr)
+
+        # check order_0 after purchase
+        orders = self.eo.db.get_dca_orders(
+            id="terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v-1")
+
+        self.assertEqual(
+            orders[0].token_allowance, 1990000)
+        self.assertEqual(
+            orders[0].initial_asset_amount, 990000)
+        self.assertGreater(
+            orders[0].last_purchase.real, 0)
+
+        # check history after purchase
+        history = self.eo.db.get_purchase_history(
+            "terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v-1")
+        self.assertEqual(len(history), 1)
+        self.assertEqual(history[0].success, 1)
+
+    def test_purchase_and_sync(self):
+        # test setup:
+        # test1 user has two orders
+        orders = self.eo.db.get_dca_orders(user_address=self.test2_user_addr)
+        self.assertEqual(len(orders), 1)
+        self.assertEqual(
+            orders[0].id, "terra17lmam6zguazs5q5u6z5mmx76uj63gldnse2pdp-1")
+
+        # order_0 before the purchase
+        self.assertEqual(
+            orders[0].token_allowance, 1000000)
+        self.assertEqual(
+            orders[0].initial_asset_amount, 1000000)
+        self.assertEqual(
+            orders[0].last_purchase, 0)
+        self.assertEqual(
+            orders[0].dca_amount, 250000)
+
+        history = self.eo.db.get_purchase_history(
+            "terra17lmam6zguazs5q5u6z5mmx76uj63gldnse2pdp-1")
+        self.assertEqual(len(history), 0)
+
+        # test1 user is executing its own order_0
+        self.eo.purchase_and_sync(
+            order_id="terra17lmam6zguazs5q5u6z5mmx76uj63gldnse2pdp-1")
+
+        # check order_0 after purchase
+        orders = self.eo.db.get_dca_orders(
+            id="terra17lmam6zguazs5q5u6z5mmx76uj63gldnse2pdp-1")
+
+        self.assertEqual(
+            orders[0].token_allowance, 750000)
+        self.assertEqual(
+            orders[0].initial_asset_amount, 750000)
+        self.assertGreater(
+            orders[0].last_purchase.real, 0)
+
+        # check history after purchase
+        history = self.eo.db.get_purchase_history(
+            "terra17lmam6zguazs5q5u6z5mmx76uj63gldnse2pdp-1")
+        self.assertEqual(len(history), 1)
+        self.assertEqual(history[0].success, 1)
+
+    def test_schedule_next_run(self):
+
+        import time
+
+        # setup test:
+        orders = self.eo.db.get_dca_orders(
+            "terra1757tkx08n0cqrw7p86ny9lnxsqeth0wgp0em95-1")
+
+        self.assertEqual(orders[0].initial_asset_amount, 1000000)
+        self.assertEqual(orders[0].dca_amount, 500000)
+        self.assertEqual(orders[0].schedule, False)
+        self.assertEqual(orders[0].next_run_time, None)
+
+        history = self.eo.db.get_purchase_history(
+            "terra1757tkx08n0cqrw7p86ny9lnxsqeth0wgp0em95-1")
+        self.assertEqual(len(history), 0)
+
+        # create scheduler
+        scheduler = BackgroundScheduler(timezone='utc')
+        scheduler.start()
+
+        self.eo.schedule_next_run(orders, scheduler)
+        print("scheduler.start()")
+
+        orders = self.eo.db.get_dca_orders(
+            "terra1757tkx08n0cqrw7p86ny9lnxsqeth0wgp0em95-1")
+
+        self.assertEqual(orders[0].schedule, True)
+        self.assertIsNotNone(orders[0].next_run_time)
+        print("Next purchase execution at: {}".format(
+            orders[0].next_run_time))
+
+        # wait till the order is completely executed.
+        # Once it is completed, it will be removed from the order table.
+        len_orders = len(orders)
+        while len_orders > 0:
+            orders = self.eo.db.get_dca_orders(
+                "terra1757tkx08n0cqrw7p86ny9lnxsqeth0wgp0em95-1")
+            len_orders = len(orders)
+            if len_orders > 0:
+                print("Next purchase execution at: {}".format(
+                    orders[0].next_run_time))
+            print("sleep 10")
+            time.sleep(10)
+
+        # we expect the bot two execute two purchases because:
+        # - initial_asset_amount = 1000000
+        # - dca_amount = 500000
+        history = self.eo.db.get_purchase_history(
+            "terra1757tkx08n0cqrw7p86ny9lnxsqeth0wgp0em95-1")
+
+        self.assertEqual(len(history), 2)
+        self.assertEqual(history[0].success, 1)
+        self.assertEqual(history[1].success, 1)
+
+        print("*********** shutdown scheduler ***********")
+        scheduler.shutdown(wait=False)
+        print("*********** FINISH ***********")
 
 
 if __name__ == '__main__':
     testNames = [
-        "xxx"
+        "test_purchase",
+        "test_purchase_and_sync",
+        "test_schedule_next_run",
+
     ]
 
     testFullNames = [

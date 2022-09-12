@@ -22,6 +22,7 @@ class TestDca(unittest.TestCase):
 
         self.network = read_artifact("localterra")
         self.dca_contract = self.network["dcaAddress"]
+
         self.terra = LocalTerra()
 
         # To make the tests as much independent as possible we use 3 users.
@@ -117,11 +118,11 @@ class TestDca(unittest.TestCase):
         output = self.dca2.get_astro_pools()
         self.assertEqual(len(output["pairs"]), 4)
 
-    # The test may fail due to timeout issue. Nonetheless most of the time
-    # the upload did actually happened even if we get a timeout issue.
-    # @unittest.skip("skip test_upload_contract")
+     # @unittest.skip("skip test_upload_contract")
     def test_upload_contract(self):
-        """ test2 user is uploading the dca contract
+        """ test2 user is uploading the dca contract. 
+            The test may fail due to timeout issue. Nonetheless most of the time
+            the upload did actually happened even if we get a timeout issue.
         """
 
         # we have already uploaded the dca contract in the image dautt/astroport:v1.2.0
@@ -145,7 +146,9 @@ class TestDca(unittest.TestCase):
 
     # @unittest.skip("skip test_instantiate")
     def test_instantiate(self):
-        """ test2 user is instantiating a new contract
+        """ test2 user is instantiating a new contract. 
+            This test depends on test_upload_contract. 
+            This means that if the first fail, this will also automatically fail.
         """
         # we have already uploaded the dca contract in the image dautt/astroport:v1.2.0
         # the code_id of the dca contract is 31

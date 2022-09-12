@@ -1,8 +1,6 @@
-coverage: ## check code coverage
-	coverage run --source terra_sdk -m pytest
-	coverage report -m
-	poetry run coverage html
-	# $(BROWSER) htmlcov/index.html
+SHELL=/bin/bash
+
+PWD=$(shell pwd)
 
 
 clean-pyc: ## remove Python file artifacts
@@ -11,33 +9,44 @@ clean-pyc: ## remove Python file artifacts
 	find . -name '*~' -exec rm -f {} +
 	find . -name '__pycache__' -exec rm -fr {} +
 
-clean-test: ## remove test and coverage artifacts
-	rm -fr .tox/
-	rm -f .coverage
-	rm -fr htmlcov/
-	rm -fr .pytest_cache
 
-test-unit: ## runs tests
-	python3.9 -m unittest test/unit/test_all.py
+test-unit:
+	python3.9 test/unit/test_all.py
 
-test-int: ## runs 
-	$(info "******** INTEGRATION TEST ********")
-	python3.9  ./test/integration/test_dca.py
 
-test-int2: local_terra_run test-int local_terra_rm
+test-int-exec-order: local_terra_run test-exec-order  local_terra_rm
+test-int-dca: local_terra_run test-dca  local_terra_rm
+
+# Defining "test-int: test-int-exec-order test-int-dca" does not work.
+# therefore we need to do a workaround: 
+test-int: 
+	$(MAKE) test-int-dca    
+	$(MAKE) test-int-exec-order
+
+test: test-unit test-int
+
+# Make sure to run first "make local_terra_run" before executing the following cmd
+test-dca: 
+	@echo "******* test_exec_dca *******"
+	python  "$(PWD)/test/integration/test_dca.py"
+
+# Make sure to run first "make local_terra_run" before executing the following cmd
+test-exec-order:  
+	@echo "******* test_exec_order *******"
+	python  "$(PWD)/test/integration/test_exec_order.py"
 
 local_terra_run: 
-	cd test/integration/localterra/; local_terra_image.sh run
+	@echo "local_terra_run"
+	cd "$(PWD)/test/integration/localterra" ; local_terra_image.sh run
 #   we need to wait for the blochain to start producing blocks.
 #   If some tests failed, increase the sleep time!
 	sleep 35
 	
-
 local_terra_rm:
-	cd test/integration/localterra/; local_terra_image.sh rm
+	@echo "local_terra_rm"
+	cd "$(PWD)/test/integration/localterra"; local_terra_image.sh rm
+	
 
 #example: make local_terra cmd=help
 local_terra :
-	cd test/integration/localterra/; local_terra_image.sh $(cmd)
-
-
+	cd "$(PWD)/test/integration/localterra"; local_terra_image.sh $(cmd)
