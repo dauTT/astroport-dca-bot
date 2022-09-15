@@ -140,7 +140,7 @@ When the bot is running a dca database is created with the following objects (ta
 | [`whitelisted_token`](bot/db/table/whitelisted_token.py) | dca config | It stores the whitelisted token of the dca contract| [`sync_dca_cfg`](bot/db_sync.py)|[`SYNC_CFG_FREQ`](bot/settings/default.py)|
 | [`whitelisted_hop`](bot/db/table/whitelisted_hop.py) | Bot  | It stores the whitelisted hop of the dca contract.| [`sync_dca_cfg`](bot/db_sync.py)|[`SYNC_CFG_FREQ`](bot/settings/default.py)|
 | [`purchase_history`](bot/db/table/purchase_history.py) | Bot | It stores the history of the purchases which the bot has executed| `N.A`|`N.A`|
-| [`token_price`](bot/db/table/token_price.py) | Bot | It stores the price of the whitelisted tokens. This table is used to calculated the best execution hop which is defined as the hop with the greatest execution target: ```usd amount of target token receive by the purchase - usd amount fee pay```| [`sync_token_price`](bot/db_sync.py)| [`SYNC_TOKEN_PRICE_FREQ`](bot/settings/default.py)|
+| [`token_price`](bot/db/table/token_price.py) | Bot | It stores the price of the whitelisted tokens. This table is used to calculated the best execution hop| [`sync_token_price`](bot/db_sync.py)| [`SYNC_TOKEN_PRICE_FREQ`](bot/settings/default.py)|
 | [`log_error`](bot/db/table/log_error.py) | Bot | It stores the error msg of the bot|`N.A`|`N.A`|
 
 
@@ -156,6 +156,7 @@ When the bot is running a dca database is created with the following objects (ta
 
 
 To better visualize the data in the SQLite database you may use this open source app, <a href="https://sqlitestudio.pl/"> SQLiteStudio </a> along with this sample queries script [queries](bot/db/queries.sql).
+
 
 
 

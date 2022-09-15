@@ -158,9 +158,11 @@ class Database:
         filters = [] if denom == None else [TokenPrice.denom == denom]
         return self.query(TokenPrice, filters)
 
-    def get_purchase_history(self,  order_id: Optional[str] = None) -> List[PurchaseHistory]:
+    def get_purchase_history(self,  order_id: Optional[str] = None, success: Optional[bool] = None) -> List[PurchaseHistory]:
         filters = [] if order_id == None else [
             PurchaseHistory.order_id == order_id]
+        if success != None:
+            filters.append(PurchaseHistory.success == success)
         return self.query(PurchaseHistory, filters)
 
     def get_user_tip_balance(self, user_address: Optional[str] = None) -> List[UserTipBalance]:
