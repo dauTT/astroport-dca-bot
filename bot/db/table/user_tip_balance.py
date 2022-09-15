@@ -10,7 +10,7 @@ class UserTipBalance(Base):
     id = Column(String, primary_key=True)
     user_address = Column(String, ForeignKey(
         "user.id", ondelete="CASCADE"))
-    denom = Column(String, primary_key=True)
+    denom = Column(String)
     asset_class = Column(String, nullable=False)
     amount = Column(Integer, nullable=False)
 

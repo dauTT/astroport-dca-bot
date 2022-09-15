@@ -138,7 +138,7 @@ When the bot is running a dca database is created with the following objects (ta
 | [`user_tip_balance`](bot/db/table/user_tip_balance.py) | User data | It stores the user's tip balances| [`sync_users_data`](bot/db_sync.py)|[`SYNC_USER_FREQ`](bot/settings/default.py)|
 | [`whitelisted_fee_asset`](bot/db/table/whitelisted_fee_asset.py) | dca config | It stores the whitelisted fee assets of the dca contract| [`sync_dca_cfg`](bot/db_sync.py)|[`SYNC_CFG_FREQ`](bot/settings/default.py)|
 | [`whitelisted_token`](bot/db/table/whitelisted_token.py) | dca config | It stores the whitelisted token of the dca contract| [`sync_dca_cfg`](bot/db_sync.py)|[`SYNC_CFG_FREQ`](bot/settings/default.py)|
-| [`whitelisted_hop`](bot/db/table/whitelisted_hop.py) | Bot  | It stores the whitelisted hop of the dca contract.| [`sync_dca_cfg`](bot/db_sync.py)|[`SYNC_CFG_FREQ`](bot/settings/default.py)|
+| [`whitelisted_hop`](bot/db/table/whitelisted_hop.py) | dca config  | It stores the whitelisted hop of the dca contract.| [`sync_dca_cfg`](bot/db_sync.py)|[`SYNC_CFG_FREQ`](bot/settings/default.py)|
 | [`purchase_history`](bot/db/table/purchase_history.py) | Bot | It stores the history of the purchases which the bot has executed| `N.A`|`N.A`|
 | [`token_price`](bot/db/table/token_price.py) | Bot | It stores the price of the whitelisted tokens. This table is used to calculated the best execution hop| [`sync_token_price`](bot/db_sync.py)| [`SYNC_TOKEN_PRICE_FREQ`](bot/settings/default.py)|
 | [`log_error`](bot/db/table/log_error.py) | Bot | It stores the error msg of the bot|`N.A`|`N.A`|

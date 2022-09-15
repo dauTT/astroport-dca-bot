@@ -62,11 +62,12 @@ def start():
 
 
 if __name__ == "__main__":
-    logging.getLogger('sqlalchemy.engine.Engine').setLevel(logging.DEBUG)
+    # logging.getLogger('sqlalchemy.engine.Engine').setLevel(logging.DEBUG)
     # logging.getLogger('bot.db.database').setLevel(logging.DEBUG)
     # logging.getLogger('apscheduler').setLevel(logging.DEBUG)
 
-    # load initial dca users into the database and
+    # load initial dca users data into the database,
+    # sync configuration and
     # fill price table
     initialize_db(reset_db=False)
 
