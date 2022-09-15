@@ -1,7 +1,6 @@
 import time
 import unittest
 import os
-from bot.util import read_artifact
 from terra_sdk.client.localterra import LocalTerra
 from apscheduler.schedulers.background import BackgroundScheduler
 from datetime import datetime, timedelta
@@ -25,6 +24,7 @@ class TestExecOrder(unittest.TestCase):
         from bot.settings import DB_URL
         from bot.settings.dev import DB_URL as DB_URL_DEV
         from bot.exec_order import ExecOrder
+        from bot.util import read_artifact
 
         assert DB_URL == DB_URL_DEV, "invalid DB_URL={}".format(
             DB_URL)
@@ -179,7 +179,7 @@ class TestExecOrder(unittest.TestCase):
                 history = self.eo.db.get_purchase_history(
                     "terra1757tkx08n0cqrw7p86ny9lnxsqeth0wgp0em95-1")
                 if len(history) != history_entries:
-                    print("""current purchase executed: success={}
+                    print("""purchase executed: success={}
                              nr purhchases:{}
                     """.format(history[len(history)-1].success, len(history)))
                     history_entries = len(history)
@@ -187,7 +187,7 @@ class TestExecOrder(unittest.TestCase):
                 print("sleep 10")
                 time.sleep(10)
             else:
-                print("finish purchases!")
+                print("purchases done!")
 
         # we expect the bot two execute two successful purchases because:
         # - initial_asset_amount = 1000000

@@ -24,7 +24,7 @@ class DCA:
 
     def __init__(self, terra: LCDClient, wallet: Wallet,  dca_addr: str = ""):
         self.terra = terra
-        self.wallet = wallet  # self.terra.wallet(mk)
+        self.wallet = wallet
         self.dca_addr = dca_addr
         self.factory_addr = None
         self.router_addr = None

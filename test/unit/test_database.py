@@ -31,21 +31,6 @@ ORDER_3 = Order(7, 20,
 
 class TestDatabase(unittest.TestCase):
 
-    # @staticmethod
-    # def setUpClass():
-    #     os.environ['DCA_BOT'] = 'test'
-    #     from bot.settings import DB_URL
-    #     from bot.settings.test import DB_URL as DB_URL_TEST
-    #     from bot.db.database import create_database_objects, Database
-    #     from bot.db.table.user import User
-
-    #     assert DB_URL == DB_URL_TEST, "invalid DB_URL={}".format(
-    #         DB_URL)
-
-    #     create_database_objects()
-
-    #     db = Database()
-
     def setUp(self):
         os.environ['DCA_BOT'] = 'test'
         from bot.settings import DB_URL

@@ -26,7 +26,7 @@ class ExecOrder(Sync):
 
     def build_fee_redeem(self, user_address: str,  hops_len: int) -> List[Asset]:
         """ The bot will try to take fee from the first asset in user_tip_balance.
-            If this this is not sufficient it will will consider also the second asset and so on.
+            If this is not sufficient, it will consider also the second asset and so on.
             For each hop the bot can take a fee amount as configured in whitelisted_fee_assets.
             If user_tip_balance is not sufficient to pay the fees for the bot, this method will throw an error.
 
@@ -368,13 +368,8 @@ class ExecOrder(Sync):
             self.schedule_next_run(expired_next_run_time_orders, scheduler)
 
 
-# def purchase_and_sync(order_id: str, scheduler: Optional[BlockingScheduler] = None):
-#     eo = ExecOrder()
-#     eo.purchase_and_sync(order_id, scheduler)
-
-
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
+    # logging.basicConfig(level=logging.DEBUG)
     # logging.getLogger('sqlalchemy.engine.Engine').setLevel(logging.DEBUG)
     # eo = ExecOrder()
     pass

@@ -19,8 +19,6 @@ class WhitelistedHop(Base):
     ask_denom = Column(String, ForeignKey(
         "whitelisted_token.denom", ondelete="CASCADE"))
 
-    # __table_args__ = (UniqueConstraint('id'), )
-
     def __init__(self, astro_swap: AstroSwap):
         self.pair_id = WhitelistedHop.build_pair_id(astro_swap)
         self.offer_denom = astro_swap.offer_asset_info.denom

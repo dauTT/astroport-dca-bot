@@ -4,7 +4,6 @@ from bot.type import Order, NativeAsset, TokenAsset, AssetInfo, \
     AssetClass
 
 
-# @unittest.skip("skipping TestDF due to conflicts with TestDatabase.")
 class TestDF(unittest.TestCase):
 
     @staticmethod

@@ -258,9 +258,9 @@ class TestExecOrder(unittest.TestCase):
 
         # 2000 * 0.0003 - 0.1 = 0.6 - 0.1 = 0.5
         self.assertAlmostEqual(execution['<3>'], 0.5)
-        # 1000 * 0.0003 - 4.1 = 0.3 - 4.1 = 0.195
+        # 1000 * 0.0003 - 4.1 = 0.3 - 4.1 = -3.8
         self.assertAlmostEqual(execution['<1><2>'],  -3.8)
-        # 4000 * 0.0003 - 4.1 = 1.2 - 4.1 = 1.095
+        # 4000 * 0.0003 - 4.1 = 1.2 - 4.1 = -2.9
         self.assertAlmostEqual(execution['<3><inverse-2>'], -2.9)
 
         best_hop = self.eo.choose_best_execution_hop(

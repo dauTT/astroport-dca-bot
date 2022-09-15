@@ -2,8 +2,6 @@ import unittest
 import os
 from bot.type import AssetClass, NativeAsset, TokenAsset, AssetInfo, \
     Asset, AstroSwap
-from bot.util import read_artifact
-from test.integration.setup import DCA_BINARY_PATH, INSTANTIATE_MSG
 from terra_sdk.client.localterra import LocalTerra
 from terra_sdk.exceptions import LCDResponseError
 from typing import List
@@ -16,6 +14,8 @@ class TestDca(unittest.TestCase):
         from bot.settings import DB_URL
         from bot.settings.dev import DB_URL as DB_URL_DEV
         from bot.dca import DCA
+        from bot.util import read_artifact
+
         assert DB_URL == DB_URL_DEV, "invalid DB_URL={}".format(
             DB_URL)
 
@@ -119,6 +119,7 @@ class TestDca(unittest.TestCase):
             The test may fail due to timeout issue. Nonetheless most of the time
             the upload did actually happened even if we get a timeout issue.
         """
+        from test.integration.setup import DCA_BINARY_PATH
 
         # we have already uploaded the dca contract in the image dautt/astroport:v1.2.0
         # the code_id of the dca contract is 31
@@ -144,6 +145,8 @@ class TestDca(unittest.TestCase):
             This test depends on test_upload_contract. 
             This means that if the first fail, this will also automatically fail.
         """
+        from test.integration.setup import INSTANTIATE_MSG
+
         # we have already uploaded the dca contract in the image dautt/astroport:v1.2.0
         # the code_id of the dca contract is 31
         contract_addr = self.dca2.instantiate(31, INSTANTIATE_MSG)
