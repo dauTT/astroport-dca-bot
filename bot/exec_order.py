@@ -16,6 +16,10 @@ logger = logging.getLogger(__name__)
 
 
 class ExecOrder(Sync):
+    """
+    This is the main class of the bot application. It groups
+    convenient methods for the execution of the dca orders
+    """
 
     def __init__(self):
         super().__init__()
@@ -25,6 +29,15 @@ class ExecOrder(Sync):
             If this this is not sufficient it will will consider also the second asset and so on.
             For each hop the bot can take a fee amount as configured in whitelisted_fee_assets.
             If user_tip_balance is not sufficient to pay the fees for the bot, this method will throw an error.
+
+            Parameters:
+                - user_address (str): the address of the user.
+                - hops_len (int): the number of hops (swap operations) between a start asset and the target asset.
+
+            Returns:
+                List[Asset]: list of Assets
+                             - example: [Native('uluna', '1000'), TokenAsset('token_addrr', '2000' )]
+
         """
 
         def _get_asset(tip: UserTipBalance) -> Asset:
@@ -73,6 +86,23 @@ class ExecOrder(Sync):
         return fee_redeem
 
     def build_fee_reedem_usd_map(self, user_address: str,  list_hops_string: List[str], prices: dict) -> dict:
+        """
+            Parameters:
+                - user_address (str): the address of the user.
+                - list_hops_string (List[str]): a list of hops string. 
+                    A hops string identifies the hops to perform between a start asset and the target asset.
+                    example: ['<1>', '<1><2>']
+                - prices (dict): key = asset's denomination, value = price in usd
+                    example: {'uluna': 0.1
+                              'token_addr1': 0.2}
+
+            returns:
+                dict: key = hops_string, value = fee_redeem
+                      example: { "<1>": 0.1,
+                                 "<1><2>": 0.3 } 
+
+        """
+
         logger.info("build_fee_reedem_usd_map")
         fee_redem_usd_map = {}
         hops_len = 0
@@ -91,20 +121,36 @@ class ExecOrder(Sync):
         assert fee_redem_usd_map != {
         }, "Unable to generate any fee_redem for the candidate list_hops={}".format(list_hops_string)
 
+        logger.debug("fee_reedem_usd_map={}".format(fee_redem_usd_map))
         return fee_redem_usd_map
 
-    def convert_assets_to_usd_amount(self, assets: List[Asset], prices: dict):
+    def convert_assets_to_usd_amount(self, assets: List[Asset], prices: dict) -> float:
         """
-        :param dict prices: key= denom, value=price per one unit of denom
+            Parameters:
+                - assets (List[Asset]): list of assets.
+                    example: [Native('uluna', '1000'), TokenAsset('token_addrr', '2000' )]
+
+                - prices (dict): key = asset's denomination, value = price in usd
+                    example: {'uluna': 0.1
+                              'token_addr1': 0.2}
+            Returns:
+                float: the usd value of the list of assets
+
         """
-        amount_usd_total = 0
+        total_usd_amount = 0
         for a in assets:
             amount = int(a.get_asset()["amount"])
             amount_usd = amount * prices[a.get_denom()]
-            amount_usd_total += amount_usd
-        return amount_usd_total
+            total_usd_amount += amount_usd
+        return total_usd_amount
 
     def get_token_price_map(self) -> dict:
+        """
+            Returns:
+                dict: key = asset's denomination, value = price in usd
+                    example: {'uluna': 0.1
+                             'token_addr1': 0.2} 
+        """
         prices = {}
         for tp in self.db.get_token_price():
             if tp.price != None:
@@ -114,7 +160,22 @@ class ExecOrder(Sync):
 
     def build_hops(self, user_address: str,  offer_amount: int, start_denom: str,
                    target_denom: str, hops_len: int) -> List[AstroSwap]:
-        logger.info("build_hops")
+        """
+            Parameters:
+                - user_address (str): the address of the user.
+                - offer_amount (int): the amount of the start asset
+                - start_denom (str): the denomination of the start asset 
+                - target_denom (str): the denomination of the target asset
+                - hops_len (int): the number of hops (swap operations) between a start asset and the target asset.
+
+            Returns:
+                List[AstroSwap]: the hops (swap operations) between a start asset and the target asset
+                - example: [AstroSwap(asset_info_start, asset_info_1), 
+                           AstroSwap(asset_info_1, asset_info_2),
+                           AstroSwap(asset_info_2, asset_info_target) ]
+
+        """
+        logger.info("build_hops:")
 
         list_hops = self.db.get_whitelisted_hops_all(
             start_denom, target_denom, hops_len)
@@ -139,11 +200,33 @@ class ExecOrder(Sync):
 
     def choose_best_execution_hop(self,  target_denom: str,
                                   offer_amount: int, fee_redem_usd_map: dict, prices: dict) -> str:
-        logger.debug("****** choose_best_execution_hop ******")
+        """ 
+            Choose the best hops string key in fee_redem_usd_map which provides the greatest execution value:
+            execution = (simulated target token receive in usd) - (fee in usd)
+
+            Parameters:
+                - target_denom (str): the denomination of the target asset.
+                - offer_amount (int): the amount of the start asset. 
+                    (The start asset info is implicitly defined in the hops string keys of fee_redem_usd_map)
+                - fee_redem_usd_map (dict): key = hops_string, value = fee redeem in usd
+                    example: { "<1>": 0.1,
+                                 "<3><2>": 0.3 } 
+                - prices (dict): key = asset's denomination, value = price in usd
+                    example: {'uluna': 0.1
+                              'token_addr1': 0.2}
+
+            Returns:
+                - str: the hops string key in fee_redem_usd_map with the greatest execution value.
+                    example: '<1><2>'
+
+        """
+
         list_hops_string = list(fee_redem_usd_map.keys())
+        logger.info(
+            "choose best execution hop from this list: {}".format(list_hops_string))
         if len(list_hops_string) == 1:
+            logger.info("best_hop: {}".format(list_hops_string[0]))
             return list_hops_string[0]
-        logger.debug("list_hops_string={}".format(list_hops_string))
 
         best_hop = list_hops_string[0]
         best_execution = 0
@@ -164,9 +247,12 @@ class ExecOrder(Sync):
                 logger.error("Unable to calculate current hop={} execution amount. err_msg={}".format(
                     hop, erro_msg
                 ))
+        logger.info("best_hop={}".format(best_hop))
         return best_hop
 
     def purchase(self, order: DcaOrder):
+        """ execute the dca order.
+        """
         logger.info("""**************** Purchase Order *******************
             {}""".format(order))
 
@@ -204,6 +290,8 @@ class ExecOrder(Sync):
                                      success, err_msg)
 
     def purchase_and_sync(self, order_id: str, scheduler: Optional[BlockingScheduler] = None):
+        """ execute the dca order, sync the local db and optionally re-schedule the next execution
+        """
         try:
             orders = self.db.get_dca_orders(order_id)
             if len(orders) == 0:
@@ -239,7 +327,12 @@ class ExecOrder(Sync):
             self.db.log_error(err_msg, calling_method, order_id)
 
     def schedule_next_run(self, orders: List[DcaOrder], scheduler: BlockingScheduler):
-        """ Schedule for each order a one off job to be executed at a future date.
+        """ It schedules for each order a one off purchase job to be executed at a future date.
+
+            Parameters:
+                - orders (List[DcaOrder]): a list of dca orders
+                - scheduler (BlockingScheduler): a instance of BlockingScheduler which is responsible for
+                    executing the schedule jobs.
         """
 
         delta = 20
@@ -263,11 +356,21 @@ class ExecOrder(Sync):
     def schedule_orders(self, scheduler: BlockingScheduler):
         """ This method is basically like schedule_next_run but it does not depend
             on the orders arguments. It will be schedule to run on regular basis to pick
-            up new orders which are not scheduled yet.
+            up new orders which are not scheduled yet or orders with next_run_time expired.
         """
         orders = self.db.get_dca_orders(schedule=False)
         if len(orders) > 0:
             self.schedule_next_run(orders, scheduler)
+
+        expired_next_run_time_orders = self.db.get_dca_orders(
+            expired_next_run_time=True)
+        if len(expired_next_run_time_orders) > 0:
+            self.schedule_next_run(expired_next_run_time_orders, scheduler)
+
+
+# def purchase_and_sync(order_id: str, scheduler: Optional[BlockingScheduler] = None):
+#     eo = ExecOrder()
+#     eo.purchase_and_sync(order_id, scheduler)
 
 
 if __name__ == "__main__":

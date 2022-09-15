@@ -1,3 +1,4 @@
+from datetime import datetime
 from bot.db.table.user import User
 from bot.db.table.dca_order import DcaOrder
 from bot.db.table.whitelisted_token import WhitelistedToken
@@ -24,14 +25,14 @@ logger = logging.getLogger(__name__)
 
 def create_database_objects():
     logger.info(
-        "**************** create_database_objects: {}********************".format(DB_URL))
+        "*** create_database_objects: {} ***".format(DB_URL))
     Base.metadata.create_all(bind=engine)
     create_or_alter_view()
 
 
 def drop_database_objects():
     logger.info(
-        "**************** drop_database_objects: {}********************".format(DB_URL))
+        "*** drop_database_objects: {} ***".format(DB_URL))
     drop_view()
     Base.metadata.drop_all(bind=engine)
 
@@ -89,7 +90,7 @@ class Database:
         session.add(ph)
 
     @db_persist
-    def log_error(self, err_msg: str, calling_method: str, order_id: str = "", user_address: str = ""):
+    def log_error(self, err_msg: str, calling_method: str, order_id: Optional[str] = None, user_address: Optional[str] = None):
         logger.error("calling_method={}, order_id={}, user_address={}, err_msg={}".format(
             calling_method, order_id, user_address, err_msg))
         session = Session()
@@ -134,7 +135,8 @@ class Database:
         filters = [] if sync_data is None else [User.sync_data == sync_data]
         return self.query(User, filters)
 
-    def get_dca_orders(self, id: Optional[str] = None,  user_address: Optional[str] = None, schedule: Optional[bool] = None) -> List[DcaOrder]:
+    def get_dca_orders(self, id: Optional[str] = None,  user_address: Optional[str] = None,
+                       schedule: Optional[bool] = None, expired_next_run_time: Optional[bool] = None) -> List[DcaOrder]:
         """
             :params str id: the identifier od the order which is a contatenation of
                             the user address and the dca contract order id.
@@ -145,7 +147,11 @@ class Database:
             filters.append(DcaOrder.user_address == user_address)
         if schedule != None:
             filters.append(DcaOrder.schedule == schedule)
-
+        if expired_next_run_time != None:
+            if expired_next_run_time:
+                filters.append(DcaOrder.next_run_time < datetime.utcnow())
+            else:
+                filters.append(DcaOrder.next_run_time >= datetime.utcnow())
         return self.query(DcaOrder, filters)
 
     def get_token_price(self, denom: Optional[str] = None) -> List[TokenPrice]:
@@ -162,7 +168,7 @@ class Database:
             UserTipBalance.user_address == user_address]
         return self.query(UserTipBalance, filters)
 
-    def get_log_error(self, order_id: Optional[str] = None, user_address: Optional[str] = None):
+    def get_log_error(self, order_id: Optional[str] = None, user_address: Optional[str] = None) -> List[LogError]:
         filters = [] if order_id == None else [
             LogError.order_id == order_id]
         if user_address != None:

@@ -2,6 +2,7 @@ from sqlalchemy import Column, String, Boolean, Integer, ForeignKey, DateTime
 from bot.db.base import Base
 from bot.db.table import row_string
 from datetime import datetime
+from typing import Optional
 
 
 class LogError(Base):
@@ -14,7 +15,7 @@ class LogError(Base):
     calling_method = Column(String)
     msg = Column(String)
 
-    def __init__(self,  order_id: str, user_address: str, calling_method: str,  msg: str):
+    def __init__(self,  order_id: Optional[str], user_address: Optional[str], calling_method: str,  msg: str):
         self.order_id = order_id
         self.user_address = user_address
         self.calling_method = calling_method

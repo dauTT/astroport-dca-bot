@@ -1,3 +1,4 @@
+import os
 from terra_sdk.core import Coins
 from terra_sdk.client.localterra import LocalTerra
 from terra_sdk.client.lcd import LCDClient
@@ -15,12 +16,15 @@ from bot.db.table.whitelisted_token import WhitelistedToken
 from bot.db.table.whitelisted_hop import WhitelistedHop
 from bot.db.table.whitelisted_fee_asset import WhitelistedFeeAsset
 from bot.db.table.token_price import TokenPrice
+from bot.db.table.log_error import LogError
+from bot.db.table.purchase_history import PurchaseHistory
 from bot.db.database import Database, create_database_objects, \
     drop_database_objects
 from bot.settings import LCD_URL, CHAIN_ID, GAS_PRICE,\
     GAS_ADJUSTMENT, MNEMONIC, DCA_CONTRACT_ADDR, TOKEN_INFO
 from bot.dca import DCA
 import logging
+
 
 logger = logging.getLogger(__name__)
 
@@ -97,12 +101,13 @@ class Sync:
 
     def _sync_dca_oders(self, user_address: str, max_spread: str, max_hops: int, orders: List[dict]):
         logger.debug("_sync_dca_oders")
-        user_order_ids = []
+        new_order_ids = []
         # insert or update user order
         for o in orders:
             order = parse_dict_to_order(o)
-            user_order_ids.append(DcaOrder.build_id(user_address, order.id))
+            new_order_ids.append(DcaOrder.build_id(user_address, order.id))
             dca_oder = DcaOrder(user_address, max_spread, max_hops, order)
+
             # update dca_order
             self.db.insert_or_update(dca_oder)
             # Note: there is a trigger 'reset_schedule' on the the dca_orders
@@ -111,7 +116,7 @@ class Sync:
 
         # remove orphan user oder
         self.db.delete(DcaOrder, (DcaOrder.user_address == user_address) & (  # type: ignore
-            DcaOrder.id.not_in(user_order_ids)))  # type: ignore
+            DcaOrder.id.not_in(new_order_ids)))  # type: ignore
 
     def _sync_whitelisted_fee_asset(self, whitelisted_fee_assets: List[dict]):
 
@@ -219,9 +224,22 @@ class Sync:
             self.db.log_error(err_msg, "sync_dca_cfg")
 
 
-def initialize_db():
-    import os
+def initialize_db(reset_db: bool = False):
+    """
+        Parameters:
+            - reset_db (bool): this flag is responsible for dropping all objects in the database.                
+    """
     DCA_BOT = os.environ['DCA_BOT']
+    logger.info(
+        "*************** ENVIRONMENT: {} **********************".format(
+            DCA_BOT))
+    logger.info("initialize_db:")
+
+    assert DCA_BOT in [
+        'dev', 'prod', 'test'], "Expected environment variable DCA_BOT in ['dev','prod', 'test']. Got DCA_BOT={}".format(DCA_BOT)
+
+    if reset_db:
+        drop_database_objects()
 
     create_database_objects()
     s = Sync()
@@ -242,20 +260,19 @@ def initialize_db():
         # insert some dca user address here: ...
         # s.insert_user_into_db(...)
         pass
-    elif DCA_BOT == "test":
+    else:  # DCA_BOT == "test":
         # insert some dca user address here: ...
         # s.insert_user_into_db(...)
         pass
-    else:
-        assert False, "Expected DCA_BOT in ['test', 'dev', 'prod']. Got DCA_BOT={}. ".format(
-            DCA_BOT)
 
+    s.sync_dca_cfg()
+    s.sync_users_data()
     s.initialize_token_price_table()
 
 
 if __name__ == "__main__":
     # logging.basicConfig(level=logging.DEBUG)
-    # .getLogger('sqlalchemy.engine.Engine').setLevel(logging.DEBUG)
+    # logging.getLogger('sqlalchemy.engine.Engine').setLevel(logging.DEBUG)
     # from bot.db.database import create_database_objects, drop_database_objects
     # drop_database_objects()
     # create_database_objects()

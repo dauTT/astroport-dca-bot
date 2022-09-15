@@ -3,39 +3,65 @@ import os
 from bot.type import Order, NativeAsset, TokenAsset, AssetInfo, \
     AssetClass
 from sqlalchemy.orm.session import make_transient
+from datetime import datetime, timedelta
+
+
+TEST_USER_1 = "user1_addr"
+TEST_USER_2 = "user2_addr"
+
+ORDER_1 = Order(5, 10, TokenAsset("Token1", "1000"),
+                AssetInfo(AssetClass.TOKEN, "token1"), 2, 500, 100)
+
+ORDER_2 = Order(6, 20,
+                NativeAsset("uluna", "1000"),
+                AssetInfo(AssetClass.NATIVE_TOKEN, "token2"),
+                3,
+                1000,
+                200,
+                )
+
+ORDER_3 = Order(7, 20,
+                NativeAsset("uluna", "1000"),
+                AssetInfo(AssetClass.NATIVE_TOKEN, "token2"),
+                3,
+                1000,
+                200,
+                )
 
 
 class TestDatabase(unittest.TestCase):
 
-    @staticmethod
-    def setUpClass():
-        os.environ['DCA_BOT'] = 'test'
-        from bot.settings import DB_URL
-        from bot.settings.test import DB_URL as DB_URL_TEST
-        from bot.db.database import create_database_objects, Database
-        from bot.db.table.user import User
+    # @staticmethod
+    # def setUpClass():
+    #     os.environ['DCA_BOT'] = 'test'
+    #     from bot.settings import DB_URL
+    #     from bot.settings.test import DB_URL as DB_URL_TEST
+    #     from bot.db.database import create_database_objects, Database
+    #     from bot.db.table.user import User
 
-        assert DB_URL == DB_URL_TEST, "invalid DB_URL={}".format(
-            DB_URL)
+    #     assert DB_URL == DB_URL_TEST, "invalid DB_URL={}".format(
+    #         DB_URL)
 
-        create_database_objects()
+    #     create_database_objects()
 
-        db = Database()
-
-        u1 = User("user1")
-        u2 = User("user2")
-        db.insert_or_update(u1)
-        db.insert_or_update(u2)
+    #     db = Database()
 
     def setUp(self):
         os.environ['DCA_BOT'] = 'test'
         from bot.settings import DB_URL
         from bot.settings.test import DB_URL as DB_URL_TEST
-        from bot.db.database import Database
+        from bot.db.database import Database, create_database_objects
+        from bot.db.table.user import User
         assert DB_URL == DB_URL_TEST, "invalid DB_URL={}".format(
             DB_URL)
 
+        create_database_objects()
         self.db = Database()
+
+        u1 = User(TEST_USER_1)
+        u2 = User(TEST_USER_2)
+        self.db.insert_or_update(u1)
+        self.db.insert_or_update(u2)
 
     @classmethod
     def tearDownClass(cls):
@@ -48,28 +74,163 @@ class TestDatabase(unittest.TestCase):
     def test_get_users(self):
         users = self.db.get_users()
         self.assertEqual(len(users), 2)
-        self.assertEqual(users[0].id, "user1")
+        self.assertEqual(users[0].id, TEST_USER_1)
         self.assertEqual(users[0].sync_data, False)
+
+    def test_delete_on_cascade_dca_order(self):
+        from bot.db.table.dca_order import DcaOrder
+        from bot.db.table.user import User
+
+        # check we have the two uses: TEST_USER_1, TEST_USER_2
+        users = self.db.get_users()
+        self.assertEqual(2, len(users))
+
+        # setup test
+        dcao1 = DcaOrder(TEST_USER_1, '0.1', 1, ORDER_1)
+        dcao2 = DcaOrder(TEST_USER_2, '0.2', 2, ORDER_2)
+        dcao3 = DcaOrder(TEST_USER_2, '0.2', 3, ORDER_3)
+
+        self.db.insert_or_update(dcao1)
+        self.db.insert_or_update(dcao2)
+        self.db.insert_or_update(dcao3)
+
+        self.assertEqual(3, len(self.db.get_dca_orders()))
+
+        # delete TEST_USER_2
+        self.db.delete(User, User.id == TEST_USER_2)
+
+        users = self.db.get_users()
+        self.assertEqual(1, len(users))
+
+        # Check the orders of TEST_USER_2 has been deleted as well
+        orders = self.db.get_dca_orders()
+        self.assertEqual(1, len(orders))
+        self.assertEqual(dcao1.id, orders[0].id)
+
+        # clean order table
+        self.db.exec_sql("delete from dca_order")
+        orders = self.db.get_dca_orders()
+        self.assertEqual(0, len(orders))
+
+    def test_delete_on_cascade_log_error(self):
+        from bot.db.table.user import User
+
+        # check we have the two uses: TEST_USER_1, TEST_USER_2
+        users = self.db.get_users()
+        self.assertEqual(2, len(users))
+
+        # Check the are no log error
+        self.assertEqual(0, len(self.db.get_log_error()))
+
+        # Enter three log error
+        self.db.log_error(
+            "err_msg1", "test_delete_on_cascade_log_error", None, TEST_USER_1)
+        self.db.log_error(
+            "err_msg2", "test_delete_on_cascade_log_error", None, TEST_USER_2)
+        self.db.log_error(
+            "err_msg3", "test_delete_on_cascade_log_error", None, TEST_USER_2)
+
+        self.assertEqual(3, len(self.db.get_log_error()))
+
+        # delete TEST_USER_2
+        self.db.delete(User, User.id == TEST_USER_2)
+
+        users = self.db.get_users()
+        self.assertEqual(1, len(users))
+
+        # Check the log errors of TEST_USER_2 has been deleted as well
+        log_errors = self.db.get_log_error()
+        self.assertEqual(1, len(log_errors))
+        self.assertEqual(TEST_USER_1, log_errors[0].user_address)
+
+        # clean log_errors table
+        self.db.exec_sql("delete from log_error")
+        log_errors = self.db.get_log_error()
+        self.assertEqual(0, len(log_errors))
+
+    def test_delete_on_cascade_purchase_history(self):
+        from bot.db.table.user import User
+        from bot.db.table.dca_order import DcaOrder
+
+        # check we have the two uses: TEST_USER_1, TEST_USER_2
+        users = self.db.get_users()
+        self.assertEqual(2, len(users))
+
+        # check the are no history entry
+        self.assertEqual(0, len(self.db.get_purchase_history()))
+
+        dcao1 = DcaOrder(TEST_USER_1, '0.1', 1, ORDER_1)
+        self.db.insert_or_update(dcao1)
+
+        # enter one history entry
+        self.db.log_purchase_history(str(dcao1.id), dcao1.initial_asset_amount.real, str(dcao1.initial_asset_denom),
+                                     str(dcao1.target_asset_denom), dcao1.dca_amount.real, "", "", False, "err_mdg")
+
+        self.assertEqual(1, len(self.db.get_purchase_history()))
+
+        # delete dcao1
+        self.db.delete(DcaOrder, DcaOrder.id == DcaOrder.id)
+        self.assertEqual(0, len(self.db.get_dca_orders()))
+
+        # check the purchase history of TEST_USER_1 has been deleted as well
+        history = self.db.get_purchase_history()
+        self.assertEqual(0, len(history))
+
+    def test_delete_on_cascade_purchase_history2(self):
+        from bot.db.table.user import User
+        from bot.db.table.dca_order import DcaOrder
+
+        # check we have the two uses: TEST_USER_1, TEST_USER_2
+        users = self.db.get_users()
+        self.assertEqual(2, len(users))
+
+        # check the are no history entry
+        self.assertEqual(0, len(self.db.get_purchase_history()))
+
+        dcao1 = DcaOrder(TEST_USER_1, '0.1', 1, ORDER_1)
+        dcao2 = DcaOrder(TEST_USER_1, '0.1', 1, ORDER_2)
+        self.db.insert_or_update(dcao1)
+        self.db.insert_or_update(dcao2)
+
+        # enter 3 history entries
+        self.db.log_purchase_history(str(dcao1.id), dcao1.initial_asset_amount.real, str(dcao1.initial_asset_denom),
+                                     str(dcao1.target_asset_denom), dcao1.dca_amount.real, "", "", False, "err_mdg")
+        self.db.log_purchase_history(str(dcao1.id), 1000, "denom2",
+                                     "denom3", 10, "", "", False, "err_mdg")
+        self.db.log_purchase_history(str(dcao2.id), 1000, "denom2",
+                                     "denom3", 10, "", "", False, "err_mdg")
+
+        self.assertEqual(3, len(self.db.get_purchase_history()))
+
+        # delete dca1
+        self.db.delete(DcaOrder, (DcaOrder.user_address == TEST_USER_1) & (  # type: ignore
+            DcaOrder.id.not_in([dcao2.id])))  # type: ignore
+
+        orders = self.db.get_dca_orders()
+        self.assertEqual(1, len(orders))
+        self.assertEqual(dcao2.id, orders[0].id)
+
+        # check the purchase history of TEST_USER_1 has been deleted as well
+        history = self.db.get_purchase_history()
+        self.assertEqual(1, len(history))
+
+        self.assertEqual(str(dcao2.id), history[0].order_id)
+
+        # clean history table
+        self.db.exec_sql("delete from purchase_history")
+        self.db.exec_sql("delete from dca_order")
+        history = self.db.get_purchase_history()
+        orders = self.db.get_dca_orders()
+        self.assertEqual(0, len(history))
+        self.assertEqual(0, len(orders))
 
     def test_insert_or_update(self):
         from bot.db.table.dca_order import DcaOrder
         orders = self.db.get_dca_orders()
         self.assertEqual(0, len(orders))
 
-        # insert 2 new order:
-        o1 = Order(5, 10, TokenAsset("Token1", "1000"),
-                   AssetInfo(AssetClass.TOKEN, "token1"), 2, 500, 100)
-
-        o2 = Order(6, 20,
-                   NativeAsset("uluna", "1000"),
-                   AssetInfo(AssetClass.NATIVE_TOKEN, "token2"),
-                   3,
-                   1000,
-                   200,
-                   )
-
-        dcao1 = DcaOrder("user1", '0.1', 1, o1)
-        dcao2 = DcaOrder("user1", '0.2', 2, o2)
+        dcao1 = DcaOrder(TEST_USER_1, '0.1', 1, ORDER_1)
+        dcao2 = DcaOrder(TEST_USER_1, '0.2', 2, ORDER_2)
 
         self.db.insert_or_update(dcao1)
         self.db.insert_or_update(dcao2)
@@ -117,21 +278,74 @@ class TestDatabase(unittest.TestCase):
         orders = self.db.get_dca_orders()
         self.assertEqual(0, len(orders))
 
+    def test_expired_next_run_time_flag(self):
+        from bot.db.table.dca_order import DcaOrder
+        orders = self.db.get_dca_orders()
+        self.assertEqual(0, len(orders))
+
+        dcao1 = DcaOrder(TEST_USER_1, '0.1', 1, ORDER_1)
+        dcao2 = DcaOrder(TEST_USER_1, '0.2', 2, ORDER_2)
+
+        dcao1.next_run_time = datetime.utcnow() + timedelta(seconds=120)
+        dcao2.next_run_time = datetime.utcnow() - timedelta(seconds=1)
+
+        self.db.insert_or_update(dcao1)
+        self.db.insert_or_update(dcao2)
+
+        # insert_or_update will actuall execute an update
+        # if the primary key id stay the same
+        orders = self.db.get_dca_orders(expired_next_run_time=False)
+        self.assertEqual(len(orders), 1)
+        self.assertEqual(orders[0].id, dcao1.id)
+
+        orders = self.db.get_dca_orders(expired_next_run_time=True)
+        self.assertEqual(len(orders), 1)
+        self.assertEqual(orders[0].id, dcao2.id)
+
+        # clean order table
+        self.db.exec_sql("delete from dca_order")
+        orders = self.db.get_dca_orders()
+        self.assertEqual(0, len(orders))
+
     def test_log_purchase_history(self):
+        from bot.db.table.dca_order import DcaOrder
+        orders = self.db.get_dca_orders()
+        self.assertEqual(0, len(orders))
+
+        # setup test
+        o1 = Order(5, 10, TokenAsset("Token1", "1000"),
+                   AssetInfo(AssetClass.TOKEN, "token1"), 2, 500, 100)
+        dcao1 = DcaOrder(TEST_USER_1, '0.1', 1, o1)
+
+        self.db.insert_or_update(dcao1)
+
+        # check no history
         self.assertEqual(0, len(self.db.get_purchase_history()))
 
-        self.db.log_purchase_history("user1-5", 10,
+        # insert one entry in history table
+        self.db.log_purchase_history(str(dcao1.id), 10,
                                      "initial_denom", "target_denom",
                                      1, "1-2-3", "fee_redeem",
                                      False, "err_msg")
 
+        # check there is one entry in history table
         self.assertEqual(1, len(self.db.get_purchase_history()))
+
+        # clean  tables
+        self.db.exec_sql(
+            "delete from dca_order")
+        self.db.exec_sql(
+            "delete from purchase_history")
+        orders = self.db.get_dca_orders()
+        self.assertEqual(0, len(orders))
+        history = self.db.get_purchase_history()
+        self.assertEqual(0, len(history))
 
     def test_log_error(self):
         self.assertEqual(0, len(self.db.get_log_error()))
 
         self.db.log_error("err_msg", "calling_method",
-                          "order_id", "user_address")
+                          None, TEST_USER_1)
 
         self.assertEqual(1, len(self.db.get_log_error()))
 
@@ -150,7 +364,7 @@ class TestDatabase(unittest.TestCase):
         self.assertEqual(0, len(tips))
 
         fee1 = NativeAsset("denom1", "100")
-        utb1 = UserTipBalance("1", fee1)
+        utb1 = UserTipBalance(TEST_USER_1, fee1)
 
         self.db.insert_or_update(utb1)
         tips = self.db.get_user_tip_balance()
@@ -162,6 +376,7 @@ class TestDatabase(unittest.TestCase):
         from bot.db.table.whitelisted_fee_asset import WhitelistedFeeAsset
         from bot.type import AstroSwap
 
+        # check whitelisted table are empty
         tokens = self.db.get_whitelisted_tokens()
         self.assertEqual(0, len(tokens))
         hops = self.db.get_whitelisted_hops()
@@ -169,6 +384,7 @@ class TestDatabase(unittest.TestCase):
         fees = self.db.get_whitelisted_fee_asset()
         self.assertEqual(0, len(fees))
 
+        # insert three witelisted assets
         ai1 = AssetInfo(AssetClass.NATIVE_TOKEN, "denom1")
         ai2 = AssetInfo(AssetClass.NATIVE_TOKEN, "denom2")
         ai3 = AssetInfo(AssetClass.TOKEN, "denom3")
@@ -181,9 +397,11 @@ class TestDatabase(unittest.TestCase):
         self.db.insert_or_update(w2)
         self.db.insert_or_update(w3)
 
+        # check the  tokens are there in the db
         tokens = self.db.get_whitelisted_tokens()
         self.assertEqual(3, len(tokens))
 
+        # insert 2 hops
         astro_swap1 = AstroSwap(ai1, ai2)  # denom1 -> denom2
         astro_swap2 = AstroSwap(ai2, ai3)  # denom2 -> denom3
         ws1 = WhitelistedHop(astro_swap1)
@@ -191,18 +409,20 @@ class TestDatabase(unittest.TestCase):
         self.db.insert_or_update(ws1)
         self.db.insert_or_update(ws2)
 
+        # check the hops are there in the db
         hops = self.db.get_whitelisted_hops()
         self.assertEqual(2, len(hops))
 
+        # check the get_whitelisted_hops_all view:
         hops_all = self.db.get_whitelisted_hops_all()
         expected_hops_all = [{'start_denom': 'denom1', 'id': '1', 'hops_len': 1,
                               'target_denom': 'denom2', 'hops': '<1>'},
 
                              {'start_denom': 'denom2', 'id': '2', 'hops_len': 1,
-                                 'target_denom': 'denom3', 'hops': '<2>'},
+                             'target_denom': 'denom3', 'hops': '<2>'},
 
                              {'start_denom': 'denom2', 'id': 'inverse-1', 'hops_len': 1,
-                                 'target_denom': 'denom1', 'hops': '<inverse-1>'},
+                             'target_denom': 'denom1', 'hops': '<inverse-1>'},
 
                              {'start_denom': 'denom3', 'id': 'inverse-2', 'hops_len': 1,
                               'target_denom': 'denom2', 'hops': '<inverse-2>'},
@@ -213,18 +433,40 @@ class TestDatabase(unittest.TestCase):
                              {'start_denom': 'denom3', 'id': '1', 'hops_len': 2,
                                  'target_denom': 'denom2', 'hops': '<inverse-2><inverse-1>'},
                              ]
+        expected_list_hops_string = [
+            '<1>', '<2>', '<1><2>', '<inverse-1>', '<inverse-2>', '<inverse-2><inverse-1>']
+        actual_list_hops_string = [h['hops'] for h in hops_all]
+        actual_list_hops_string.sort()
+        expected_list_hops_string.sort()
+
+        self.assertEqual(actual_list_hops_string,
+                         expected_list_hops_string)
         self.assertEqual(hops_all, expected_hops_all)
 
+        self.assertEqual('<2>', self.db.get_whitelisted_hops_all(
+            "denom2", "denom3")[0]['hops'])
+        self.assertEqual('<inverse-2>', self.db.get_whitelisted_hops_all(
+            "denom3", "denom2")[0]['hops'])
+
+        # insert one fee asset
         fee1 = NativeAsset("denom1", "100")
         wfee1 = WhitelistedFeeAsset(fee1)
         self.db.insert_or_update(wfee1)
+
+        # check the fee is there in the db
         fees = self.db.get_whitelisted_fee_asset()
         self.assertEqual(1, len(fees))
 
 
 def get_test_names():
     testNames = [
+        "test_get_users",
+        "test_delete_on_cascade_dca_order",
+        "test_delete_on_cascade_log_error",
+        "test_delete_on_cascade_purchase_history",
+        "test_delete_on_cascade_purchase_history2",
         "test_insert_or_update",
+        "test_expired_next_run_time_flag",
         "test_log_purchase_history",
         "test_log_error",
         "test_sql_query",
@@ -238,6 +480,8 @@ def get_test_names():
 
 
 if __name__ == '__main__':
+    # import logging
+    # logging.basicConfig(level=logging.DEBUG)
     testFullNames = get_test_names()
     loader = unittest.TestLoader()
     suite = loader.loadTestsFromNames(testFullNames)

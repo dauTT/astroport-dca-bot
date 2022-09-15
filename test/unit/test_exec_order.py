@@ -206,7 +206,7 @@ class TestExecOrder(unittest.TestCase):
         from bot.db.table.token_price import TokenPrice
         from bot.db.table.user_tip_balance import UserTipBalance
 
-        # setup tip user tip
+        # setup tip user
         tip1 = UserTipBalance(TEST_USER, TokenAsset("denom1", "1000"))
         tip2 = UserTipBalance(TEST_USER, LUNA)
         self.eo.db.insert_or_update(tip1)

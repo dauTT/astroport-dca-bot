@@ -1,7 +1,6 @@
 from xmlrpc.client import Boolean
-from sqlalchemy import Column, String, Integer, ForeignKey, DateTime, func, Boolean
+from sqlalchemy import Column, String, Integer, ForeignKey, DateTime, Boolean
 from bot.db.base import Base
-from bot.type import Order
 from bot.db.table import row_string
 from datetime import datetime
 
@@ -10,7 +9,6 @@ class PurchaseHistory(Base):
     """
         We track the purchase order history as long as the order is relevant.
         Once a user order is complete, the corresponding purchasse history will be also deleted.
-        Column hops, success and err_msd are especially important
     """
     __tablename__ = 'purchase_history'
 

@@ -38,14 +38,14 @@ class TestDF(unittest.TestCase):
         db.insert_or_update(dcao1)
 
         db.log_error("err_msg", "calling_method",
-                     "order_id", "user_address")
+                     str(dcao1.id), "user1")
 
         db.log_purchase_history("user1-5", 10,
                                 "initial_denom", "target_denom",
                                 1, "1-2-3", "fee_redeem",
                                 False, "err_msg")
         fee1 = NativeAsset("denom1", "100")
-        utb1 = UserTipBalance("1", fee1)
+        utb1 = UserTipBalance("user1", fee1)
 
         db.insert_or_update(utb1)
 
@@ -54,6 +54,9 @@ class TestDF(unittest.TestCase):
         db.insert_or_update(w1)
 
         ai2 = AssetInfo(AssetClass.NATIVE_TOKEN, "denom2")
+        w2 = WhitelistedToken(ai2)
+        db.insert_or_update(w2)
+
         astro_swap1 = AstroSwap(ai1, ai2)  # denom1 -> denom2
         wh = WhitelistedHop(astro_swap1)
         db.insert_or_update(wh)
@@ -101,7 +104,7 @@ class TestDF(unittest.TestCase):
         self.assertEqual(1, len(self.df.whitelisted_fee_asset))
 
     def test_whitelisted_token(self):
-        self.assertEqual(1, len(self.df.whitelisted_token))
+        self.assertEqual(2, len(self.df.whitelisted_token))
 
     def test_whitelisted_hop(self):
         self.assertEqual(1, len(self.df.whitelisted_hop))

@@ -1,5 +1,7 @@
+# DB_URL = "sqlite:///test/integration/dca.db"
+
+# Use in memorey sqlite db to speed up the tests
 DB_URL = 'sqlite:///:memory:'
-# DB_URL1 = 'sqlite:///test/pd_df.db'
 
 
 DCA_CONTRACT_ADDR = "terra1zrkla3nzvenamj4vp95yxtw6cfxymxkgwqk79z997hqaeq8yg8wsdw47e2"

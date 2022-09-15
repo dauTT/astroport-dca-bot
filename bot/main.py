@@ -33,22 +33,11 @@ def init_log(logging_level):
 logger = init_log(logging.INFO)
 
 
-def clean_db():
-    from bot.db.database import drop_database_objects
-    drop_database_objects()
-
-
 def start():
     """
         When the bot start it will reschedule all the orders in the DB, regardless
         of whether they have been already schedule in the past or not.
     """
-    DCA_BOT = os.environ['DCA_BOT']
-    assert DCA_BOT in [
-        'dev', 'prod', 'test'], "Please configure the environment variable DCA_BOT "
-
-    logger.info(
-        "*************** ENVIRONMENT: {} **********************".format(os.environ['DCA_BOT']))
     logger.info("*************** BOT START ****************************")
     bot = ExecOrder()
 
@@ -73,15 +62,13 @@ def start():
 
 
 if __name__ == "__main__":
-    # logging.getLogger('sqlalchemy.engine.Engine').setLevel(logging.DEBUG)
+    logging.getLogger('sqlalchemy.engine.Engine').setLevel(logging.DEBUG)
     # logging.getLogger('bot.db.database').setLevel(logging.DEBUG)
     # logging.getLogger('apscheduler').setLevel(logging.DEBUG)
 
-    # clean_db()
-
     # load initial dca users into the database and
     # fill price table
-    initialize_db()
+    initialize_db(reset_db=False)
 
     # Once the bot start to process the initial user orders, we can still include new users
     # by adding them to the database directly via sql or in this way:

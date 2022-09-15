@@ -5,7 +5,6 @@ from bot.type import AssetClass, NativeAsset, TokenAsset, AssetInfo, \
 from bot.util import read_artifact
 from test.integration.setup import DCA_BINARY_PATH, INSTANTIATE_MSG
 from terra_sdk.client.localterra import LocalTerra
-from terra_sdk.core import AccAddress, Coins
 from terra_sdk.exceptions import LCDResponseError
 from typing import List
 
@@ -36,7 +35,6 @@ class TestDca(unittest.TestCase):
         self.dca2 = DCA(self.terra, self.test2_wallet, self.dca_contract)
         self.dca3 = DCA(self.terra, self.test3_wallet, self.dca_contract)
 
-    # @unittest.skip("skip test_query_get_config")
     def test_query_get_config(self):
         res = self.dca2.query_get_config()
 
@@ -66,7 +64,6 @@ class TestDca(unittest.TestCase):
         self.assertEqual(res['factory_addr'], expected_result['factory_addr'])
         self.assertEqual(res['router_addr'], expected_result['router_addr'])
 
-    # @unittest.skip("skip test_query_get_user_config")
     def test_query_get_user_config(self):
         expected = {'last_id': 1,
                     'max_hops': None,
@@ -83,7 +80,6 @@ class TestDca(unittest.TestCase):
         self.assertEqual(output["max_spread"], expected["max_spread"])
         self.assertEqual(output["tip_balance"], expected["tip_balance"])
 
-    # @unittest.skip("skip test_query_get_user_dca_orders")
     def test_query_get_user_dca_orders(self):
         expected = [{'token_allowance': '1000000',
                     'order': {'id': 1,
@@ -113,7 +109,6 @@ class TestDca(unittest.TestCase):
         self.assertEqual(output[0]["order"]["dca_amount"],
                          expected[0]["order"]["dca_amount"])
 
-    # @unittest.skip("skip test_get_astro_pools")
     def test_get_astro_pools(self):
         output = self.dca2.get_astro_pools()
         self.assertEqual(len(output["pairs"]), 4)
@@ -144,7 +139,6 @@ class TestDca(unittest.TestCase):
         code = self.terra.wasm.code_info(32)
         self.assertEqual(code["data_hash"], expected_dca_hash)
 
-    # @unittest.skip("skip test_instantiate")
     def test_instantiate(self):
         """ test2 user is instantiating a new contract. 
             This test depends on test_upload_contract. 
@@ -155,7 +149,6 @@ class TestDca(unittest.TestCase):
         contract_addr = self.dca2.instantiate(31, INSTANTIATE_MSG)
         self.assertRegex(contract_addr, "terra*")
 
-    # @unittest.skip("skip test_execute_update_user_config")
     def test_execute_update_user_config(self):
         """ test3 user is updating its configuration
         """
@@ -185,7 +178,6 @@ class TestDca(unittest.TestCase):
         # The one (with commit=c216ecd4f350113316be44d06a95569f451ac681) used in this image dautt/astroport:v1.2.0 is a little bit outdated
         self.dca1.execute_update_config(4, "0.6")
 
-    # @unittest.skip("skip test_execute_add_bot_tip")
     def test_execute_add_bot_tip(self):
         """ test3 user is adding a tip
         """
@@ -213,7 +205,6 @@ class TestDca(unittest.TestCase):
                          [{'info': {'token': {'contract_addr': 'terra1q0e70vhrv063eah90mu97sazhywmeegptx642t5px7yfcrf0rrsq2nesul'}}, 'amount': '1000000'},
                           {'info': {'native_token': {'denom': 'uluna'}}, 'amount': '2000000'}])
 
-    # @unittest.skip("skip test_execute_create_oder")
     def test_execute_create_oder(self):
         """ test1 user is creating one more order
         """
@@ -262,7 +253,6 @@ class TestDca(unittest.TestCase):
         self.assertEqual(
             new_orders[2]['order']['dca_amount'], expected['order']['dca_amount'])
 
-    # @unittest.skip("skip test_execute_perform_dca_purchase")
     def test_execute_perform_dca_purchase(self):
         """ test2 user is executing a purchase for test1 user1
         """

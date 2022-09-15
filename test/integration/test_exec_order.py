@@ -1,9 +1,10 @@
-from multiprocessing.connection import wait
+import time
 import unittest
 import os
 from bot.util import read_artifact
 from terra_sdk.client.localterra import LocalTerra
 from apscheduler.schedulers.background import BackgroundScheduler
+from datetime import datetime, timedelta
 
 
 class TestExecOrder(unittest.TestCase):
@@ -13,19 +14,11 @@ class TestExecOrder(unittest.TestCase):
         os.environ['DCA_BOT'] = 'dev'
         from bot.settings import DB_URL
         from bot.settings.dev import DB_URL as DB_URL_DEV
-        from bot.db_sync import initialize_db, Sync
-        from bot.db.database import drop_database_objects
-
+        from bot.db_sync import initialize_db
         assert DB_URL == DB_URL_DEV, "invalid DB_URL={}".format(
             DB_URL)
 
-        drop_database_objects()
-        initialize_db()
-
-        s = Sync()
-        s.sync_dca_cfg()
-        s.sync_users_data()
-        s.sync_token_price()
+        initialize_db(True)
 
     def setUp(self):
         os.environ['DCA_BOT'] = 'dev'
@@ -139,9 +132,8 @@ class TestExecOrder(unittest.TestCase):
         self.assertEqual(history[0].success, 1)
 
     def test_schedule_next_run(self):
-
-        import time
-
+        """ test the execution of an order till it is fully complete.
+        """
         # setup test:
         orders = self.eo.db.get_dca_orders(
             "terra1757tkx08n0cqrw7p86ny9lnxsqeth0wgp0em95-1")
@@ -157,41 +149,62 @@ class TestExecOrder(unittest.TestCase):
 
         # create scheduler
         scheduler = BackgroundScheduler(timezone='utc')
-        scheduler.start()
 
         self.eo.schedule_next_run(orders, scheduler)
-        print("scheduler.start()")
-
-        orders = self.eo.db.get_dca_orders(
-            "terra1757tkx08n0cqrw7p86ny9lnxsqeth0wgp0em95-1")
+        scheduler.start()
 
         self.assertEqual(orders[0].schedule, True)
         self.assertIsNotNone(orders[0].next_run_time)
-        print("Next purchase execution at: {}".format(
-            orders[0].next_run_time))
 
         # wait till the order is completely executed.
         # Once it is completed, it will be removed from the order table.
         len_orders = len(orders)
+        history_entries = 0
+        db_next_run_time = None
         while len_orders > 0:
             orders = self.eo.db.get_dca_orders(
                 "terra1757tkx08n0cqrw7p86ny9lnxsqeth0wgp0em95-1")
             len_orders = len(orders)
             if len_orders > 0:
-                print("Next purchase execution at: {}".format(
-                    orders[0].next_run_time))
-            print("sleep 10")
-            time.sleep(10)
+                if db_next_run_time != orders[0].next_run_time:
+                    db_next_run_time = orders[0].next_run_time
+                    print("db_next_run_time: {}".format(
+                        db_next_run_time))
 
-        # we expect the bot two execute two purchases because:
+                if db_next_run_time != None:
+                    assert datetime.utcnow() + \
+                        timedelta(
+                            seconds=20) > db_next_run_time, "db next_run_time = {} is expired!".format(db_next_run_time)
+
+                history = self.eo.db.get_purchase_history(
+                    "terra1757tkx08n0cqrw7p86ny9lnxsqeth0wgp0em95-1")
+                if len(history) != history_entries:
+                    print("""current purchase executed: success={}
+                             nr purhchases:{}
+                    """.format(history[len(history)-1].success, len(history)))
+                    history_entries = len(history)
+
+                print("sleep 10")
+                time.sleep(10)
+            else:
+                print("finish purchases!")
+
+        # we expect the bot two execute two successful purchases because:
         # - initial_asset_amount = 1000000
         # - dca_amount = 500000
+        self.assertGreaterEqual(history_entries, 1)
+
+        # After the second successful purchase the order is fully completed and it will be removed
+        # from the db:
+        orders = self.eo.db.get_dca_orders(
+            "terra1757tkx08n0cqrw7p86ny9lnxsqeth0wgp0em95-1")
+        self.assertEqual(0, len(orders))
+
+        # The removal of the order_id = "terra1757tkx08n0cqrw7p86ny9lnxsqeth0wgp0em95-1" from the order table
+        # will cause the deletion of the corresponding entries in the purchase history table:
         history = self.eo.db.get_purchase_history(
             "terra1757tkx08n0cqrw7p86ny9lnxsqeth0wgp0em95-1")
-
-        self.assertEqual(len(history), 2)
-        self.assertEqual(history[0].success, 1)
-        self.assertEqual(history[1].success, 1)
+        self.assertEqual(0, len(history))
 
         print("*********** shutdown scheduler ***********")
         scheduler.shutdown(wait=False)
@@ -199,11 +212,12 @@ class TestExecOrder(unittest.TestCase):
 
 
 if __name__ == '__main__':
+    # import logging
+    # logging.basicConfig(level=logging.INFO)
     testNames = [
         "test_purchase",
         "test_purchase_and_sync",
         "test_schedule_next_run",
-
     ]
 
     testFullNames = [
@@ -213,5 +227,4 @@ if __name__ == '__main__':
     suite = loader.loadTestsFromNames(testFullNames)
     runner = unittest.TextTestRunner(verbosity=2)
     runner.run(suite)
-
     pass

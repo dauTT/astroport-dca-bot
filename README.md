@@ -30,9 +30,7 @@ It will create a virtual environment venv in the root directory of the project:
 │       └── python3.9
 │       └── pip3.9
 │       └── ...
-│   └── include
-│   └── lib
-│   └── lib64
+│   └── ...
 
 ```
 
@@ -79,6 +77,16 @@ The integration tests are using the following localterra image <a href="https://
 test/integration/localterra/localterra.json
 test/integration/setup.py
 ```
+
+When running the integration tests, there are two tests that may fail occasionally due to timeout issue. So do not be alarmed by that.  
+
+```
+test2 user is uploading the dca contract. ... ERROR
+test_instantiate (test_dca.TestDca)
+test2 user is instantiating a new contract. ... ERROR
+```
+
+
 
 Run all tests:
 
@@ -147,13 +155,8 @@ When the bot is running a dca database is created with the following objects (ta
 | [`trigger_updated_at`](bot/db/table/token_price.py) | user data |This trigger  is associated with the table [`token_price`](bot/db/table/token_price.py) and it will update the column `updated_at` after a price token is updated |
 
 
-To better understand the data in the SQLite database you may use this open source app, <a href="https://sqlitestudio.pl/"> SQLite studio </a> along with this sample queries script [queries](bot/db/queries.sql).
+To better visualize the data in the SQLite database you may use this open source app, <a href="https://sqlitestudio.pl/"> SQLiteStudio </a> along with this sample queries script [queries](bot/db/queries.sql).
 
-
-
-
-
- 
 
 
 

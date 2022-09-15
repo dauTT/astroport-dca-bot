@@ -12,7 +12,7 @@ class DcaOrder(Base):
     # Unique identifier which is a combination of the user address and the order id stored in the blockchain.
     id = Column(String, primary_key=True)
     create_at = Column(DateTime, default=datetime.utcnow())
-    user_address = Column(String, ForeignKey('user.id'))
+    user_address = Column(String, ForeignKey('user.id', ondelete="CASCADE"))
     # The order id stored in the blockchain. It is unique only relative to the user.
     dca_order_id = Column(Integer, nullable=False)
     token_allowance = Column(Integer)

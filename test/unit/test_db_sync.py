@@ -191,6 +191,7 @@ class TestDbSync(unittest.TestCase):
         # setup test
         max_spread = "0.1"
         max_hops = 3
+        self.sync.insert_user_into_db(TEST_USER)
 
         # build order 1
         order_id_1 = 1
